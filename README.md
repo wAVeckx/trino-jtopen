@@ -35,6 +35,6 @@ For a connection with SSL(Yet to be tested), use the following JDBC URL strings 
 
 | Property Name | Description |
 |---------------|-------------|
-|`db2.varchar-max-length` | max length of VARCHAR type in a CREATE TABLE or ALTER TABLE command. default is `32672`|
+|`jtopen.varchar-max-length` | max length of VARCHAR type in a CREATE TABLE or ALTER TABLE command. default is `32672`|
 
 
