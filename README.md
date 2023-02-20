@@ -34,6 +34,3 @@ For a connection with SSL(Yet to be tested), use the following JDBC URL strings 
 |`db2.varchar-max-length` | max length of VARCHAR type in a CREATE TABLE or ALTER TABLE command. default is `32672`|
 
 
-**Notice**: you may need to customize value of `db2.varchar-max-length` to `32739` when using Db2 warehouse.
-
-
