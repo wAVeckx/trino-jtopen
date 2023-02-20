@@ -7,7 +7,10 @@ This connector was originally based on the code from [trino-db2](https://github.
 What is Trino? 
 Trino is a distributed SQL query engine designed to query large data sets distributed over one or more heterogeneous data sources.
 
+**Notice**
+
 Notice that this connector requires the connected database to be Db2 for IBMi and it requires the open source driver JTOpen/JT400. 
+Writes have yet to be tested! 
 
 See [DEVELOPMENT](DEVELOPMENT.md) for information on development process.
 
