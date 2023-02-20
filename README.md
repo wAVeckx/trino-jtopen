@@ -19,14 +19,14 @@ See [DEVELOPMENT](DEVELOPMENT.md) for information on development process.
 
 Create new properties file like `<catalog-name>.properties` inside `etc/catalog` dir:
 
-    connector.name=db2
-    connection-url=jdbc:db2://ip:port/database
+    connector.name=jtopen
+    connection-url=jdbc:as400://ip:port/database;date format=iso;
     connection-user=myuser
     connection-password=mypassword
 
 For a connection with SSL(Yet to be tested), use the following JDBC URL strings as `connection-url`:
 
-    connection-url=jdbc:db2://ip:port/database:sslConnection=true;
+    connection-url=jdbc:jtopen://ip:port/database:sslConnection=true;
 
 **Notices**:
 * the trailing semi-colon is required. Or it will throw SQLException `Invalid database URL syntax`.
