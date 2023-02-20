@@ -1,6 +1,7 @@
 # Trino JTOpen connector [![Actions Status](https://github.com/wAVeckx/trino-jtopen/workflows/Java%20CI/badge.svg)](https://github.com/wAVeckx/trino-jtopen/actions)
 
 This is a connector for [Trino](https://trino.io/) that allows you to use IBM [JTOpen/JT400](https://jt400.sourceforge.net) Jdbc Connection.
+
 This connector was originally based on the code from [trino-db2](https://github.com/IBM/trino-db2) which is a connector for Db2 LUW IBM connection. 
 
 What is Trino? 
