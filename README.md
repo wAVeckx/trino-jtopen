@@ -2,7 +2,7 @@
 
 This is a connector for [Trino](https://trino.io/) that allows you to use IBM [JTOpen/JT400](https://jt400.sourceforge.net) Jdbc Connection.
 
-This connector was originally based on the code from [trino-db2](https://github.com/IBM/trino-db2) which is a connector for Db2 LUW IBM connection. 
+This connector was originally based on the code from [trino-db2](https://github.com/IBM/trino-db2) which is a connector for Db2 LUW using IBM connection/driver. 
 
 What is Trino? 
 Trino is a distributed SQL query engine designed to query large data sets distributed over one or more heterogeneous data sources.
