@@ -38,3 +38,4 @@ For a connection with SSL(Yet to be tested), use the following JDBC URL strings 
 |`jtopen.varchar-max-length` | max length of VARCHAR type in a CREATE TABLE or ALTER TABLE command. default is `32672`|
 
 
+Now supports 410 Trino, LIKE predicate pushdown, and Table function(query) support. 
