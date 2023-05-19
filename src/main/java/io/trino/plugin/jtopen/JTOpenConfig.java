@@ -25,6 +25,7 @@ public class JTOpenConfig
     // 32672 value comes from the official LUW document
     // 32739 values comes from the official i document
     private int varcharMaxLength = 32739;
+    private boolean storedProcedureTableFunctionEnabled;
 
     @Min(1)
     public int getVarcharMaxLength()
@@ -37,6 +38,19 @@ public class JTOpenConfig
     public JTOpenConfig setVarcharMaxLength(int varcharMaxLength)
     {
         this.varcharMaxLength = varcharMaxLength;
+        return this;
+    }
+
+    public boolean isStoredProcedureTableFunctionEnabled()
+    {
+        return storedProcedureTableFunctionEnabled;
+    }
+
+    @Config("jtopen.experimental.stored-procedure-table-function-enabled")
+    @ConfigDescription("Allows accessing Stored procedure as a table function")
+    public JTOpenConfig setStoredProcedureTableFunctionEnabled(boolean storedProcedureTableFunctionEnabled)
+    {
+        this.storedProcedureTableFunctionEnabled = storedProcedureTableFunctionEnabled;
         return this;
     }
 }

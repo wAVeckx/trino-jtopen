@@ -28,7 +28,8 @@ public class TestJTOpenConfig
     public void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(JTOpenConfig.class)
-                .setVarcharMaxLength(32739));
+                .setVarcharMaxLength(32739)
+                .setStoredProcedureTableFunctionEnabled(false));
     }
 
     @Test
@@ -38,10 +39,12 @@ public class TestJTOpenConfig
 
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("jtopen.varchar-max-length", String.valueOf(testVarcharLength))
+                .put("jtopen.experimental.stored-procedure-table-function-enabled", "true")
                 .build();
 
         JTOpenConfig expected = new JTOpenConfig()
-                .setVarcharMaxLength(testVarcharLength);
+                .setVarcharMaxLength(testVarcharLength)
+                .setStoredProcedureTableFunctionEnabled(true);
 
         assertFullMapping(properties, expected);
     }
