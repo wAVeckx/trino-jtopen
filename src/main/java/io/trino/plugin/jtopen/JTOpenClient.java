@@ -14,6 +14,7 @@
 package io.trino.plugin.jtopen;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.plugin.base.aggregation.AggregateFunctionRewriter;
 import io.trino.plugin.base.aggregation.AggregateFunctionRule;
@@ -82,8 +83,6 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
-
-import javax.inject.Inject;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
