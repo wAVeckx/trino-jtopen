@@ -68,6 +68,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.ValueSet;
@@ -140,7 +141,6 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.toLongTrinoTimestamp;
 import static io.trino.plugin.jdbc.StandardColumnMappings.toTrinoTimestamp;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryWriteFunction;
-import static io.trino.plugin.jdbc.StandardColumnMappings.varcharColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharWriteFunction;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsupportedTypeHandling;
@@ -162,6 +162,7 @@ import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.lang.Math.max;
 import static java.lang.String.format;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
@@ -738,6 +739,31 @@ public class JTOpenClient
                     })
                     .findOne()
                     .orElse(new HashMap<>());
+        }
+    }
+
+    @Override
+    protected void renameTable(ConnectorSession session, String catalogName, String schemaName, String tableName, SchemaTableName newTable)
+    {
+        try (Connection connection = connectionFactory.openConnection(session)) {
+            String newTableName = newTable.getTableName();
+            if (connection.getMetaData().storesUpperCaseIdentifiers()) {
+                newTableName = newTableName.toUpperCase(ENGLISH);
+            }
+            // Specifies the new name for the table without a schema name
+            String sql = format(
+                    "RENAME TABLE %s TO %s",
+                    quoted(catalogName, schemaName, tableName),
+                    quoted(newTableName));
+            try {
+                execute(session, connection, sql);
+            }
+            catch (SQLException e) {
+                throw new TrinoException(JDBC_ERROR, e);
+            }
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
         }
     }
 
