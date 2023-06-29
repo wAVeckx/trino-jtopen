@@ -98,6 +98,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
@@ -645,11 +646,13 @@ public class JTOpenClient
     {
         checkArgument(table.isNamedRelation(), "Relation is not a table: %s", table);
 
+        log.info("Reading statistics for %s", table);
         try (Connection connection = connectionFactory.openConnection(session);
                 Handle handle = Jdbi.open(connection)) {
             StatisticsDao statisticsDao = new StatisticsDao(handle);
 
             Long rowCount = statisticsDao.getRowCount(table);
+            log.info("Estimated row count of table %s is %s", table, rowCount);
 
             if (rowCount == null) {
                 // Table not found, or is a view.
@@ -659,18 +662,18 @@ public class JTOpenClient
             TableStatistics.Builder tableStatistics = TableStatistics.builder();
             tableStatistics.setRowCount(Estimate.of(rowCount));
 
+            Map<String, Map<String, Long>> allColumnStatistics = statisticsDao.getAllColumnStatistics(table);
+
             for (JdbcColumnHandle column : this.getColumns(session, table)) {
                 String columnName = column.getColumnName();
-                // Retrieve column statistics
-                Map<String, Long> columnStatistics = statisticsDao.getColumnStatistics(table, columnName);
+                Map<String, Long> columnStatistics = allColumnStatistics.getOrDefault(columnName, new HashMap<>());
+
+                ColumnStatistics.Builder columnStatisticsBuilder = ColumnStatistics.builder();
 
                 Long distinctValues = columnStatistics.getOrDefault("NUMBER_DISTINCT_VALUES", null);
                 Long rowCountValues = columnStatistics.getOrDefault("CURRENT_ROWS", null);
                 Long nullsCount = columnStatistics.getOrDefault("NUMBER_NULLS", null);
                 Long averageColumnLength = columnStatistics.getOrDefault("AVERAGE_COLUMN_LENGTH", null);
-
-                ColumnStatistics.Builder columnStatisticsBuilder = ColumnStatistics.builder();
-
                 if (distinctValues != null) {
                     columnStatisticsBuilder.setDistinctValuesCount(Estimate.of(distinctValues));
                 }
@@ -684,7 +687,9 @@ public class JTOpenClient
 
                     columnStatisticsBuilder.setDataSize(Estimate.of(estimatedDataSize));
                 }
-                tableStatistics.setColumnStatistics(column, columnStatisticsBuilder.build());
+
+                ColumnStatistics statistics = columnStatisticsBuilder.build();
+                tableStatistics.setColumnStatistics(column, statistics);
             }
 
             return tableStatistics.build();
@@ -739,6 +744,32 @@ public class JTOpenClient
                     })
                     .findOne()
                     .orElse(new HashMap<>());
+        }
+
+        Map<String, Map<String, Long>> getAllColumnStatistics(JdbcTableHandle table)
+        {
+            RemoteTableName remoteTableName = table.getRequiredNamedRelation().getRemoteTableName();
+            return handle.createQuery("" +
+                    "SELECT COLUMN_NAME, NUMBER_DISTINCT_VALUES, NUMBER_HISTOGRAM_RANGES, CURRENT_ROWS " +
+                    ", AVERAGE_COLUMN_LENGTH , NUMBER_NULLS " +
+                    "FROM QSYS2.SYSCOLUMNSTAT " +
+                    "WHERE TABLE_SCHEMA = :schema " +
+                    "AND TABLE_NAME = :table_name " +
+                    "AND TRANSLATION_TABLES = '' ")
+                    .bind("schema", remoteTableName.getSchemaName().orElse(null))
+                    .bind("table_name", remoteTableName.getTableName())
+                    .map((rs, ctx) -> {
+                        String columnName = rs.getString("COLUMN_NAME");
+                        Map<String, Long> columnStats = new HashMap<>();
+                        columnStats.put("NUMBER_DISTINCT_VALUES", rs.getLong("NUMBER_DISTINCT_VALUES"));
+                        columnStats.put("NUMBER_HISTOGRAM_RANGES", rs.getLong("NUMBER_HISTOGRAM_RANGES"));
+                        columnStats.put("CURRENT_ROWS", rs.getLong("CURRENT_ROWS"));
+                        columnStats.put("AVERAGE_COLUMN_LENGTH", rs.getLong("AVERAGE_COLUMN_LENGTH"));
+                        columnStats.put("NUMBER_NULLS", rs.getLong("NUMBER_NULLS"));
+                        // Add other relevant column statistics
+                        return Map.entry(columnName, columnStats);
+                    })
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
     }
 
