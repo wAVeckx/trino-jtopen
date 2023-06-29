@@ -68,10 +68,10 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
-import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.CharType;
@@ -92,6 +92,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -161,7 +162,6 @@ import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.lang.Math.max;
 import static java.lang.String.format;
-import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
@@ -606,32 +606,6 @@ public class JTOpenClient
         }
     }
 
-    private TableStatistics readTableStatistics(ConnectorSession session, JdbcTableHandle table)
-            throws SQLException
-    {
-        checkArgument(table.isNamedRelation(), "Relation is not a table: %s", table);
-
-        log.debug("Reading statistics for %s", table);
-        try (Connection connection = connectionFactory.openConnection(session);
-                Handle handle = Jdbi.open(connection)) {
-            StatisticsDao statisticsDao = new StatisticsDao(handle);
-
-            Long rowCount = statisticsDao.getRowCount(table);
-            log.debug("Estimated row count of table %s is %s", table, rowCount);
-
-            if (rowCount == null) {
-                // Table not found, or is a view.
-                return TableStatistics.empty();
-            }
-
-            TableStatistics.Builder tableStatistics = TableStatistics.builder();
-            tableStatistics.setRowCount(Estimate.of(rowCount));
-
-            tableStatistics.setRowCount(Estimate.of(rowCount));
-            return tableStatistics.build();
-        }
-    }
-
     @Override
     protected void verifySchemaName(DatabaseMetaData databaseMetadata, String schemaName)
             throws SQLException
@@ -665,6 +639,57 @@ public class JTOpenClient
         }
     }
 
+    private TableStatistics readTableStatistics(ConnectorSession session, JdbcTableHandle table)
+            throws SQLException
+    {
+        checkArgument(table.isNamedRelation(), "Relation is not a table: %s", table);
+
+        try (Connection connection = connectionFactory.openConnection(session);
+                Handle handle = Jdbi.open(connection)) {
+            StatisticsDao statisticsDao = new StatisticsDao(handle);
+
+            Long rowCount = statisticsDao.getRowCount(table);
+
+            if (rowCount == null) {
+                // Table not found, or is a view.
+                return TableStatistics.empty();
+            }
+
+            TableStatistics.Builder tableStatistics = TableStatistics.builder();
+            tableStatistics.setRowCount(Estimate.of(rowCount));
+
+            for (JdbcColumnHandle column : this.getColumns(session, table)) {
+                String columnName = column.getColumnName();
+                // Retrieve column statistics
+                Map<String, Long> columnStatistics = statisticsDao.getColumnStatistics(table, columnName);
+
+                Long distinctValues = columnStatistics.getOrDefault("NUMBER_DISTINCT_VALUES", null);
+                Long rowCountValues = columnStatistics.getOrDefault("CURRENT_ROWS", null);
+                Long nullsCount = columnStatistics.getOrDefault("NUMBER_NULLS", null);
+                Long averageColumnLength = columnStatistics.getOrDefault("AVERAGE_COLUMN_LENGTH", null);
+
+                ColumnStatistics.Builder columnStatisticsBuilder = ColumnStatistics.builder();
+
+                if (distinctValues != null) {
+                    columnStatisticsBuilder.setDistinctValuesCount(Estimate.of(distinctValues));
+                }
+
+                if (rowCountValues != null && nullsCount != null && rowCountValues > 0) {
+                    double nullsFraction = (double) nullsCount / rowCountValues;
+                    columnStatisticsBuilder.setNullsFraction(Estimate.of(nullsFraction));
+                }
+                if (rowCountValues != null && averageColumnLength != null) {
+                    long estimatedDataSize = averageColumnLength * rowCountValues;
+
+                    columnStatisticsBuilder.setDataSize(Estimate.of(estimatedDataSize));
+                }
+                tableStatistics.setColumnStatistics(column, columnStatisticsBuilder.build());
+            }
+
+            return tableStatistics.build();
+        }
+    }
+
     private static class StatisticsDao
     {
         private final Handle handle;
@@ -680,36 +705,39 @@ public class JTOpenClient
             return handle.createQuery("" +
                             "SELECT NUMBER_ROWS FROM QSYS2.SYSTABLESTAT " +
                             "WHERE SYSTEM_TABLE_SCHEMA = :schema AND SYSTEM_TABLE_NAME = :table_name ")
-                    .bind("schema", remoteTableName.getCatalogName().orElse(null))
+                    .bind("schema", remoteTableName.getSchemaName().orElse(null))
                     .bind("table_name", remoteTableName.getTableName())
                     .mapTo(Long.class)
                     .findOne()
                     .orElse(null);
         }
-    }
 
-    @Override
-    protected void renameTable(ConnectorSession session, String catalogName, String schemaName, String tableName, SchemaTableName newTable)
-    {
-        try (Connection connection = connectionFactory.openConnection(session)) {
-            String newTableName = newTable.getTableName();
-            if (connection.getMetaData().storesUpperCaseIdentifiers()) {
-                newTableName = newTableName.toUpperCase(ENGLISH);
-            }
-            // Specifies the new name for the table without a schema name
-            String sql = format(
-                    "RENAME TABLE %s TO %s",
-                    quoted(catalogName, schemaName, tableName),
-                    quoted(newTableName));
-            try {
-                execute(session, connection, sql);
-            }
-            catch (SQLException e) {
-                throw new TrinoException(JDBC_ERROR, e);
-            }
-        }
-        catch (SQLException e) {
-            throw new TrinoException(JDBC_ERROR, e);
+        Map<String, Long> getColumnStatistics(JdbcTableHandle table, String columnName)
+        {
+            RemoteTableName remoteTableName = table.getRequiredNamedRelation().getRemoteTableName();
+            return handle.createQuery("" +
+                    "SELECT COLUMN_NAME, NUMBER_DISTINCT_VALUES, NUMBER_HISTOGRAM_RANGES, CURRENT_ROWS " +
+                    ", AVERAGE_COLUMN_LENGTH , NUMBER_NULLS " +
+                    "FROM QSYS2.SYSCOLUMNSTAT " +
+                    "WHERE TABLE_SCHEMA = :schema " +
+                    "AND TABLE_NAME = :table_name " +
+                    "AND TRANSLATION_TABLES = '' " +
+                    "AND COLUMN_NAME = :column_name")
+                    .bind("schema", remoteTableName.getSchemaName().orElse(null))
+                    .bind("table_name", remoteTableName.getTableName())
+                    .bind("column_name", columnName)
+                    .map((rs, ctx) -> {
+                        Map<String, Long> columnStats = new HashMap<>();
+                        columnStats.put("NUMBER_DISTINCT_VALUES", rs.getLong("NUMBER_DISTINCT_VALUES"));
+                        columnStats.put("NUMBER_HISTOGRAM_RANGES", rs.getLong("NUMBER_HISTOGRAM_RANGES"));
+                        columnStats.put("CURRENT_ROWS", rs.getLong("CURRENT_ROWS"));
+                        columnStats.put("AVERAGE_COLUMN_LENGTH", rs.getLong("AVERAGE_COLUMN_LENGTH"));
+                        columnStats.put("NUMBER_NULLS", rs.getLong("NUMBER_NULLS"));
+                        // Add other relevant column statistics
+                        return columnStats;
+                    })
+                    .findOne()
+                    .orElse(new HashMap<>());
         }
     }
 
