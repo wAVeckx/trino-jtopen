@@ -646,13 +646,13 @@ public class JTOpenClient
     {
         checkArgument(table.isNamedRelation(), "Relation is not a table: %s", table);
 
-        log.info("Reading statistics for %s", table);
+        log.debug("Reading statistics for %s", table);
         try (Connection connection = connectionFactory.openConnection(session);
                 Handle handle = Jdbi.open(connection)) {
             StatisticsDao statisticsDao = new StatisticsDao(handle);
 
             Long rowCount = statisticsDao.getRowCount(table);
-            log.info("Estimated row count of table %s is %s", table, rowCount);
+            log.debug("Estimated row count of table %s is %s", table, rowCount);
 
             if (rowCount == null) {
                 // Table not found, or is a view.
