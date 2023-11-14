@@ -16,6 +16,7 @@ jobs:
       matrix:
         java-version:
         - 17
+        - 21
     env:
       MAVEN_SKIP_CHECKS_AND_DOCS: -Dair.check.skip-all=true -Dmaven.javadoc.skip=true
       MAVEN_FAST_INSTALL: -DskipTests -Dair.check.skip-all=true -Dmaven.javadoc.skip=true -B -q -T 1.0C
@@ -24,7 +25,7 @@ jobs:
 
     - uses: actions/setup-java@v3
       with:
-        distribution: 'zulu'
+        distribution: 'temurin'
         java-version: ${{ matrix.java-version }}
 
     - name: mvn install
@@ -35,7 +36,7 @@ jobs:
 
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.java-version == '17' }}
+      if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.java-version == '21' }}
       with:
         files: |
           target/trino-jtopen-*.zip
