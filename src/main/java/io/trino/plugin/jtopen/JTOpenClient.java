@@ -753,34 +753,6 @@ public class JTOpenClient
                     .orElse(null);
         }
 
-        Map<String, Long> getColumnStatistics(JdbcTableHandle table, String columnName)
-        {
-            RemoteTableName remoteTableName = table.getRequiredNamedRelation().getRemoteTableName();
-            return handle.createQuery("" +
-                    "SELECT COLUMN_NAME, NUMBER_DISTINCT_VALUES, NUMBER_HISTOGRAM_RANGES, CURRENT_ROWS " +
-                    ", AVERAGE_COLUMN_LENGTH , NUMBER_NULLS " +
-                    "FROM QSYS2.SYSCOLUMNSTAT " +
-                    "WHERE TABLE_SCHEMA = :schema " +
-                    "AND TABLE_NAME = :table_name " +
-                    "AND TRANSLATION_TABLES = '' " +
-                    "AND COLUMN_NAME = :column_name")
-                    .bind("schema", remoteTableName.getSchemaName().orElse(null))
-                    .bind("table_name", remoteTableName.getTableName())
-                    .bind("column_name", columnName)
-                    .map((rs, ctx) -> {
-                        Map<String, Long> columnStats = new HashMap<>();
-                        columnStats.put("NUMBER_DISTINCT_VALUES", rs.getLong("NUMBER_DISTINCT_VALUES"));
-                        columnStats.put("NUMBER_HISTOGRAM_RANGES", rs.getLong("NUMBER_HISTOGRAM_RANGES"));
-                        columnStats.put("CURRENT_ROWS", rs.getLong("CURRENT_ROWS"));
-                        columnStats.put("AVERAGE_COLUMN_LENGTH", rs.getLong("AVERAGE_COLUMN_LENGTH"));
-                        columnStats.put("NUMBER_NULLS", rs.getLong("NUMBER_NULLS"));
-                        // Add other relevant column statistics
-                        return columnStats;
-                    })
-                    .findOne()
-                    .orElse(new HashMap<>());
-        }
-
         Map<String, Map<String, Long>> getAllColumnStatistics(JdbcTableHandle table)
         {
             RemoteTableName remoteTableName = table.getRequiredNamedRelation().getRemoteTableName();
