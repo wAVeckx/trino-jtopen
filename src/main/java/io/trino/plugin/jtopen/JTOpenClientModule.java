@@ -71,8 +71,6 @@ public class JTOpenClientModule
         // block size (a.k.a fetch size), default 32
         connectionProperties.setProperty("block size", "512");
 
-        //return new DriverConnectionFactory(new AS400JDBCDriver(), config.getConnectionUrl(), connectionProperties, credentialProvider);
-
         return DriverConnectionFactory.builder(new AS400JDBCDriver(), config.getConnectionUrl(), credentialProvider)
                 .setConnectionProperties(connectionProperties)
                         .setOpenTelemetry(openTelemetry)
