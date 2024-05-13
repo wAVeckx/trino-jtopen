@@ -19,6 +19,7 @@ import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.ibm.as400.access.AS400JDBCDriver;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.opentelemetry.api.OpenTelemetry;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.DecimalModule;
@@ -63,13 +64,18 @@ public class JTOpenClientModule
     @Provides
     @Singleton
     @ForBaseJdbc
-    public static ConnectionFactory getConnectionFactory(BaseJdbcConfig config, CredentialProvider credentialProvider, JTOpenConfig db2Config)
+    public static ConnectionFactory getConnectionFactory(BaseJdbcConfig config, CredentialProvider credentialProvider, JTOpenConfig db2Config, OpenTelemetry openTelemetry)
     {
         Properties connectionProperties = new Properties();
         // https://www-01.ibm.com/support/knowledgecenter/ssw_ibm_i_72/rzaha/conprop.htm
         // block size (a.k.a fetch size), default 32
         connectionProperties.setProperty("block size", "512");
 
-        return new DriverConnectionFactory(new AS400JDBCDriver(), config.getConnectionUrl(), connectionProperties, credentialProvider);
+        //return new DriverConnectionFactory(new AS400JDBCDriver(), config.getConnectionUrl(), connectionProperties, credentialProvider);
+
+        return DriverConnectionFactory.builder(new AS400JDBCDriver(), config.getConnectionUrl(), credentialProvider)
+                .setConnectionProperties(connectionProperties)
+                        .setOpenTelemetry(openTelemetry)
+                        .build();
     }
 }

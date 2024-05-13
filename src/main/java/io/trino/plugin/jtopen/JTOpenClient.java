@@ -158,7 +158,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
@@ -175,7 +175,7 @@ public class JTOpenClient
     private static final Logger log = Logger.get(JTOpenClient.class);
 
     private final int varcharMaxLength;
-    private static final int JTOpen_MAX_SUPPORTED_TIMESTAMP_PRECISION = 12;
+
     //TODO: Need to review precision issues. 12 seems to work for timestamp
     // java.util.LocalDateTime supports up to nanosecond precision
     private static final int MAX_LOCAL_DATE_TIME_PRECISION = 12;
@@ -302,7 +302,7 @@ public class JTOpenClient
         if (mapping.isPresent()) {
             return mapping;
         }
-        switch (typeHandle.getJdbcType()) {
+        switch (typeHandle.jdbcType()) {
             case Types.BIT:
             case Types.BOOLEAN:
                 return Optional.of(booleanColumnMapping());
@@ -328,24 +328,24 @@ public class JTOpenClient
 
             case Types.NUMERIC:
             case Types.DECIMAL:
-                int decimalDigits = typeHandle.getRequiredDecimalDigits();
-                int precision = typeHandle.getRequiredColumnSize() + max(-decimalDigits, 0); // Map decimal(p, -s) (negative scale) to decimal(p+s, 0).
+                int decimalDigits = typeHandle.requiredDecimalDigits();
+                int precision = typeHandle.requiredColumnSize() + max(-decimalDigits, 0); // Map decimal(p, -s) (negative scale) to decimal(p+s, 0).
                 if (precision > Decimals.MAX_PRECISION) {
                     break;
                 }
                 return Optional.of(decimalColumnMapping(createDecimalType(precision, max(decimalDigits, 0))));
             case Types.CHAR:
-                return Optional.of(charColumnMapping(typeHandle.getRequiredColumnSize()));
+                return Optional.of(charColumnMapping(typeHandle.requiredColumnSize()));
             case Types.NCHAR:
-                return Optional.of(defaultCharColumnMapping(typeHandle.getRequiredColumnSize(), true));
+                return Optional.of(defaultCharColumnMapping(typeHandle.requiredColumnSize(), true));
 
             case Types.VARCHAR:
-                return Optional.of(varcharColumnMapping(typeHandle.getRequiredColumnSize()));
+                return Optional.of(varcharColumnMapping(typeHandle.requiredColumnSize()));
 
             case Types.NVARCHAR:
             case Types.LONGVARCHAR:
             case Types.LONGNVARCHAR:
-                return Optional.of(defaultVarcharColumnMapping(typeHandle.getRequiredColumnSize(), false));
+                return Optional.of(defaultVarcharColumnMapping(typeHandle.requiredColumnSize(), false));
 
             case Types.CLOB:
             case Types.NCLOB:
@@ -370,9 +370,11 @@ public class JTOpenClient
                 return Optional.of(timeColumnMappingUsingSqlTime());
 
             case Types.TIMESTAMP:
-                TimestampType timestampType = typeHandle.getDecimalDigits()
-                        .map(TimestampType::createTimestampType)
-                        .orElse(TIMESTAMP_MILLIS);
+                int timeprecision = typeHandle.requiredDecimalDigits();
+                if (timeprecision > MAX_LOCAL_DATE_TIME_PRECISION) {
+                    timeprecision = MAX_LOCAL_DATE_TIME_PRECISION;
+                }
+                TimestampType timestampType = createTimestampType(timeprecision);
                 return Optional.of(timestampColumnMapping(timestampType));
         }
 
@@ -448,7 +450,7 @@ public class JTOpenClient
 
         if (type instanceof TimestampType) {
             TimestampType timestampType = (TimestampType) type;
-            verify(timestampType.getPrecision() <= JTOpen_MAX_SUPPORTED_TIMESTAMP_PRECISION);
+            verify(timestampType.getPrecision() <= MAX_LOCAL_DATE_TIME_PRECISION);
             return WriteMapping.longMapping(format("TIMESTAMP(%s)", timestampType.getPrecision()), timestampWriteFunction(timestampType));
         }
 
