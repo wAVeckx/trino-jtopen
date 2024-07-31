@@ -1,6 +1,6 @@
 # Trino JTOpen connector [![Actions Status](https://github.com/wAVeckx/trino-jtopen/workflows/Java%20CI/badge.svg)](https://github.com/wAVeckx/trino-jtopen/actions)
 
-This is a connector for [Trino](https://trino.io/) that allows you to use IBM [JTOpen/JT400](https://jt400.sourceforge.net) Jdbc Connection.
+This is a connector for [Trino](https://trino.io/) that allows you to use IBM [JTOpen/JT400](https://jt400.sourceforge.net) Jdbc Connection to connect to a IBMi/Db2 for i/AS400 system.
 
 This connector was originally based on the code from [trino-db2](https://github.com/IBM/trino-db2) which is a connector for Db2 LUW using IBM connection/driver. 
 
@@ -36,6 +36,3 @@ For a connection with SSL(Yet to be tested), use the following JDBC URL strings 
 | Property Name | Description |
 |---------------|-------------|
 |`jtopen.varchar-max-length` | max length of VARCHAR type in a CREATE TABLE or ALTER TABLE command. default is `32672`|
-
-
-Now supports 410 Trino, LIKE predicate pushdown, and Table function(query) support. 
