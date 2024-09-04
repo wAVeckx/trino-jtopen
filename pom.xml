@@ -5,11 +5,11 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>171</version>
+        <version>170</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
-    <version>453</version>
+    <version>455</version>
     <packaging>trino-plugin</packaging>
     <description>Trino - JTOpen Connector</description>
 
@@ -25,7 +25,7 @@
         <air.build.jvmsize>4g</air.build.jvmsize>
 
         <dep.trino.version>455</dep.trino.version>
-        <dep.airlift.version>262</dep.airlift.version>
+        <dep.airlift.version>261</dep.airlift.version>
         <dep.slice.version>2.3</dep.slice.version>
         <dep.opentelemetry.version>1.41.0</dep.opentelemetry.version>
         <dep.opentelemetry-instrumentation.version>2.3.0</dep.opentelemetry-instrumentation.version>
@@ -37,7 +37,7 @@
         <dep.jakarta.version>3.1.0</dep.jakarta.version>
         <dep.jdbi.version>3.45.4</dep.jdbi.version>
         <dep.joda.version>2.12.7</dep.joda.version>
-        <dep.junit.version>5.10.2</dep.junit.version>
+        <dep.junit.version>5.11.0</dep.junit.version>
         <dep.assertj-core.version>3.25.3</dep.assertj-core.version>
         <dep.plugin.surefire.version>3.2.5</dep.plugin.surefire.version>
         <dep.jna.version>5.14.0</dep.jna.version>
@@ -81,7 +81,6 @@
             <artifactId>log</artifactId>
             <version>${dep.airlift.version}</version>
         </dependency>
-
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-base-jdbc</artifactId>
