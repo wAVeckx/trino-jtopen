@@ -27,11 +27,11 @@ jobs:
         distribution: 'temurin'
         java-version: ${{ matrix.java-version }}
 
-    - name: mvn install
-      run: mvn install $MAVEN_FAST_INSTALL
+    - name: ./mvnw install
+      run: ./mvnw install $MAVEN_FAST_INSTALL
 
-    - name: mvn test
-      run: mvn test -Dmaven.javadoc.skip=true -B
+    - name: ./mvnw test
+      run: ./mvnw test -Dmaven.javadoc.skip=true -B
 
     - name: Release
       uses: softprops/action-gh-release@v2
