@@ -17,7 +17,7 @@ See [DEVELOPMENT](DEVELOPMENT.md) for information on development process.
 
 ## Connection Configuration
 
-Create new properties file like `<catalog-name>.properties` inside `etc/catalog` dir:
+Create new properties file like `<catalog-name>.properties` inside `/etc/trino/catalog` dir:
 
     connector.name=jtopen
     connection-url=jdbc:as400://ip:port/database;date format=iso;
