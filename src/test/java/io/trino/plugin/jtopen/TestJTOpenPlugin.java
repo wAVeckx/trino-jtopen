@@ -20,6 +20,7 @@ import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.FileInputStream;
@@ -46,18 +47,18 @@ public class TestJTOpenPlugin {
     @Test
     public void testQuery() throws IOException, ClassNotFoundException {
         // Expected data
-        List<String> expectedColumnNames = List.of("id", "first_name", "last_name", "email");
+        List<String> expectedColumnNames = List.of("empno", "firstnme", "midinit", "lastname", "workdept", "phoneno", "hiredate", "job", "edlevel", "sex", "birthdate", "salary", "bonus", "comm");
 
         // Get trino jdbc url
         Properties prop = new Properties();
-        FileInputStream ip = new FileInputStream("config.properties");
+        FileInputStream ip = new FileInputStream("test-settings.properties");
         prop.load(ip);
         String url = prop.getProperty("db.url");
 
         // Use Trino Driver and establish connection
         Class.forName("io.trino.jdbc.TrinoDriver");
 
-        String query = "SELECT * FROM qgpl.customers";
+        String query = "SELECT * FROM qgpl.emptest";
 
         try (
             Connection connection = DriverManager.getConnection(url);
@@ -70,11 +71,12 @@ public class TestJTOpenPlugin {
             // Verify correct column names
             List<String> actualColumnNames = new ArrayList<>();
             for (int i = 1; i <= rsMetadata.getColumnCount(); i++) {
-                actualColumnNames.add(rsMetadata.getColumnName(0));
+                actualColumnNames.add(rsMetadata.getColumnName(i));
             }
             assertEquals(expectedColumnNames, actualColumnNames);
         } catch (SQLException e) {
             e.printStackTrace();
+            fail();
         }
     }
 }
