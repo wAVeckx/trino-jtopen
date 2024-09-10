@@ -64,4 +64,4 @@ buildNumber.properties
 .mvn/wrapper/maven-wrapper.jar
 
 # Test config
-config.properties
+test-settings.properties
