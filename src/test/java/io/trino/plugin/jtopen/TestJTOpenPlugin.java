@@ -20,16 +20,63 @@ import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class TestJTOpenPlugin
-{
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+
+public class TestJTOpenPlugin {
     @Test
-    public void testCreateConnector()
-    {
+    public void testCreateConnector() {
         Plugin plugin = new JTOpenPlugin();
         ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
         assertEquals(factory.getName(), "jtopen");
         factory.create("test", ImmutableMap.of("connection-url", "jdbc:as400:test"), new TestingConnectorContext());
+    }
+
+    @Test
+    public void testQuery() throws IOException, ClassNotFoundException {
+        // Expected data
+        List<String> expectedColumnNames = List.of("empno", "firstnme", "midinit", "lastname", "workdept", "phoneno", "hiredate", "job", "edlevel", "sex", "birthdate", "salary", "bonus", "comm");
+
+        // Get trino jdbc url
+        Properties prop = new Properties();
+        FileInputStream ip = new FileInputStream("test-settings.properties");
+        prop.load(ip);
+        String url = prop.getProperty("db.url");
+
+        // Use Trino Driver and establish connection
+        Class.forName("io.trino.jdbc.TrinoDriver");
+
+        String query = "SELECT * FROM qgpl.emptest";
+
+        try (
+            Connection connection = DriverManager.getConnection(url);
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(query);
+            ) 
+        {
+            ResultSetMetaData rsMetadata = resultSet.getMetaData();
+
+            // Verify correct column names
+            List<String> actualColumnNames = new ArrayList<>();
+            for (int i = 1; i <= rsMetadata.getColumnCount(); i++) {
+                actualColumnNames.add(rsMetadata.getColumnName(i));
+            }
+            assertEquals(expectedColumnNames, actualColumnNames);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            fail();
+        }
     }
 }
