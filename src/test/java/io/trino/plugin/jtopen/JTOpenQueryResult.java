@@ -23,29 +23,35 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class JTOpenQueryResult {
+public class JTOpenQueryResult
+{
     private ResultSet fResultSet;
-    
+
     // Only two row value types are supported right now: String and Integer.
-    static enum ROW_TYPE {
+    static enum ROW_TYPE
+    {
         UNKNOWN,
         STRING,
         INTEGER
     };
 
     // This inner class represents a single column row value.
-    static class ROW {
+    static class ROW
+    {
         private Object fRowValue;
 
-        public ROW(Object value) {
+        public ROW(Object value)
+        {
             fRowValue = value;
         }
 
-        public Object getValue() {
+        public Object getValue()
+        {
             return fRowValue;
         }
 
-        public ROW_TYPE getRowType() {
+        public ROW_TYPE getRowType()
+        {
             if (fRowValue instanceof String)
                 return ROW_TYPE.STRING;
             else if (fRowValue instanceof Integer)
@@ -55,7 +61,8 @@ public class JTOpenQueryResult {
         }
 
         @Override
-        public boolean equals(Object another) {
+        public boolean equals(Object another)
+        {
             if (another instanceof ROW)
                 return fRowValue.equals(((ROW)another).getValue());
             else
@@ -63,22 +70,29 @@ public class JTOpenQueryResult {
         }
     }
 
-    public static ROW row(Object value) {
+    public static ROW row(Object value)
+    {
         return new ROW(value);
     }
 
-    public JTOpenQueryResult(ResultSet resultSet) {
+    public JTOpenQueryResult(ResultSet resultSet)
+    {
         fResultSet = resultSet;
     }
-    
+
     // Assert that the result set has no rows
-    public void hasNoRows() throws SQLException {
+    public void hasNoRows()
+            throws SQLException
+    {
         assertFalse(fResultSet.next());
     }
 
     // Return the raw value on column 1 of the current row.
-    private Object getRowValue(ROW_TYPE rowType) throws SQLException {
-        switch(rowType) {
+    private Object getRowValue(ROW_TYPE rowType)
+            throws SQLException
+    {
+        switch(rowType)
+        {
         case ROW_TYPE.STRING:
             return fResultSet.getString(1);
         case ROW_TYPE.INTEGER:
@@ -90,11 +104,15 @@ public class JTOpenQueryResult {
 
     // Convert the result set to a ROW list
     // Only works for single column result
-    private List<ROW> asRows(ROW_TYPE rowType) throws SQLException {
+    private List<ROW> asRows(ROW_TYPE rowType)
+            throws SQLException
+    {
         List<ROW> rowList = new ArrayList<ROW>();
-        while (fResultSet.next()) {
+        while (fResultSet.next())
+        {
             Object rowValue = getRowValue(rowType);
-            if (rowValue != null) {
+            if (rowValue != null)
+            {
                 rowList.add(row(rowValue));
             }
         }
@@ -103,7 +121,9 @@ public class JTOpenQueryResult {
 
     // Assert that the rows in the current result set match the given row list
     // Only works for single column result.
-    public void containsOnly(ROW... rows) throws SQLException {
+    public void containsOnly(ROW... rows)
+            throws SQLException
+    {
         if (rows.length == 0)
             hasNoRows();
 
@@ -111,7 +131,7 @@ public class JTOpenQueryResult {
         List<ROW> resultRows = asRows(rowType);
         List<ROW> targetRows = new ArrayList<ROW>();
         Collections.addAll(targetRows, rows);
-        
+
         assertEquals(resultRows.size(), targetRows.size());
         assertTrue(resultRows.containsAll(targetRows));
     }
