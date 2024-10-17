@@ -16,15 +16,15 @@ package io.trino.plugin.jtopen;
 import java.sql.SQLException;
 
 import static io.trino.plugin.jtopen.JTOpenTestDriver.onJTOpen;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static java.lang.String.format;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JTOpenBaseTest
         implements ITestConfigurationConstants
 {
-
     /**
      * Create a JTOpen test table from the tpch table tpch.tiny.nation
+     * 
      * @return the full name of the created JTOpen table
      */
     public String createTinyNationTable()
@@ -45,21 +45,19 @@ public class JTOpenBaseTest
 
     /**
      * Perform test cleanup, which drops the test table at the end of the test and also closes the JDBC connection.
+     * 
      * @param tableName the test table to clean up
      */
     public void cleanup(String tableName)
     {
-        try
-        {
-            if (tableName != null)
-            {
+        try {
+            if (tableName != null) {
                 onJTOpen().dropTable(tableName);
             }
 
             onJTOpen().close();
         }
-        catch (Throwable ex)
-        {
+        catch (Throwable ex) {
             throw new RuntimeException(ex);
         }
     }
