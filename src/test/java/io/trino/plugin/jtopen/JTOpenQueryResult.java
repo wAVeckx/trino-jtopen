@@ -28,12 +28,12 @@ public class JTOpenQueryResult
     private ResultSet fResultSet;
 
     // Only two row value types are supported right now: String and Integer.
-    static enum ROW_TYPE
+    static enum RowType
     {
         UNKNOWN,
         STRING,
         INTEGER
-    };
+    }
 
     // This inner class represents a single column row value.
     static class ROW
@@ -50,23 +50,34 @@ public class JTOpenQueryResult
             return fRowValue;
         }
 
-        public ROW_TYPE getRowType()
+        public RowType getRowType()
         {
-            if (fRowValue instanceof String)
-                return ROW_TYPE.STRING;
-            else if (fRowValue instanceof Integer)
-                return ROW_TYPE.INTEGER;
-            else
-                return ROW_TYPE.UNKNOWN;
+            if (fRowValue instanceof String) {
+                return RowType.STRING;
+            }
+            else if (fRowValue instanceof Integer) {
+                return RowType.INTEGER;
+            }
+            else {
+                return RowType.UNKNOWN;
+            }
         }
 
         @Override
         public boolean equals(Object another)
         {
-            if (another instanceof ROW)
-                return fRowValue.equals(((ROW)another).getValue());
-            else
+            if (another instanceof ROW) {
+                return fRowValue.equals(((ROW) another).getValue());
+            }
+            else {
                 return false;
+            }
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return fRowValue.hashCode();
         }
     }
 
@@ -88,31 +99,28 @@ public class JTOpenQueryResult
     }
 
     // Return the raw value on column 1 of the current row.
-    private Object getRowValue(ROW_TYPE rowType)
+    private Object getRowValue(RowType rowType)
             throws SQLException
     {
-        switch(rowType)
-        {
-        case ROW_TYPE.STRING:
-            return fResultSet.getString(1);
-        case ROW_TYPE.INTEGER:
-            return fResultSet.getInt(1);
-        default:
-            return null;
+        switch(rowType) {
+            case RowType.STRING:
+                return fResultSet.getString(1);
+            case RowType.INTEGER:
+                return fResultSet.getInt(1);
+            default:
+                return null;
         }
     }
 
     // Convert the result set to a ROW list
     // Only works for single column result
-    private List<ROW> asRows(ROW_TYPE rowType)
+    private List<ROW> asRows(RowType rowType)
             throws SQLException
     {
         List<ROW> rowList = new ArrayList<ROW>();
-        while (fResultSet.next())
-        {
+        while (fResultSet.next()) {
             Object rowValue = getRowValue(rowType);
-            if (rowValue != null)
-            {
+            if (rowValue != null) {
                 rowList.add(row(rowValue));
             }
         }
@@ -124,10 +132,11 @@ public class JTOpenQueryResult
     public void containsOnly(ROW... rows)
             throws SQLException
     {
-        if (rows.length == 0)
+        if (rows.length == 0) {
             hasNoRows();
+        }
 
-        ROW_TYPE rowType = rows[0].getRowType();
+        RowType rowType = rows[0].getRowType();
         List<ROW> resultRows = asRows(rowType);
         List<ROW> targetRows = new ArrayList<ROW>();
         Collections.addAll(targetRows, rows);
