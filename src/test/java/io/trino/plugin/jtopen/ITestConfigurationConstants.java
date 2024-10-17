@@ -13,7 +13,8 @@
  */
 package io.trino.plugin.jtopen;
 
-public interface ITestConfigurationConstants {
+public interface ITestConfigurationConstants
+{
     static final String JTOPEN_JDBC_URL = "jdbc:trino://localhost:8080/jtopen";
     static final String SAMPLE_TPCH_TABLE = "tpch.tiny.nation";
     static final String JTOPEN_TEST_SCHEMA = "TRINOJTTST";
