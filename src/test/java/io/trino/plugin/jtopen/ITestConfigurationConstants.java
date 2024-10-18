@@ -15,8 +15,19 @@ package io.trino.plugin.jtopen;
 
 public interface ITestConfigurationConstants
 {
+    // JDBC URL for JTOPEN
+    // Assuming that the trino container is running on the local machine at port 8080
     String JTOPEN_JDBC_URL = "jdbc:trino://localhost:8080/jtopen";
+
+    // User id for trino JDBC connection. No password is required for this id.
+    String TRINO_JDBC_USER = "admin";
+
+    // The sample tiny nation table from the TPCH connector
     String SAMPLE_TPCH_TABLE = "tpch.tiny.nation";
+
+    // The JTOPEN test schema
     String JTOPEN_TEST_SCHEMA = "TRINOJTTST";
+
+    // The name of the JTOPEN test table that is copied from the TPCH tiny nation table
     String JTOPEN_TEST_TABLE_NATION = "NATION";
 }
