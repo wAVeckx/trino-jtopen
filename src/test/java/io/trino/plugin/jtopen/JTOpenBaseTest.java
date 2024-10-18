@@ -24,7 +24,7 @@ public class JTOpenBaseTest
 {
     /**
      * Create a JTOpen test table from the tpch table tpch.tiny.nation
-     * 
+     *
      * @return the full name of the created JTOpen table
      */
     public String createTinyNationTable()
@@ -45,7 +45,7 @@ public class JTOpenBaseTest
 
     /**
      * Perform test cleanup, which drops the test table at the end of the test and also closes the JDBC connection.
-     * 
+     *
      * @param tableName the test table to clean up
      */
     public void cleanup(String tableName)
