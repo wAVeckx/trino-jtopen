@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
-    <version>461</version>
+    <version>462</version>
     <packaging>trino-plugin</packaging>
     <description>Trino - JTOpen Connector</description>
 
