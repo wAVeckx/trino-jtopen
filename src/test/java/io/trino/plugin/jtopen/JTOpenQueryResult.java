@@ -102,7 +102,7 @@ public class JTOpenQueryResult
     private Object getRowValue(RowType rowType)
             throws SQLException
     {
-        switch(rowType) {
+        switch (rowType) {
             case RowType.STRING:
                 return fResultSet.getString(1);
             case RowType.INTEGER:
