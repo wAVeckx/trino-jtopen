@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>193</version>
+        <version>194</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
@@ -25,7 +25,7 @@
         <air.build.jvmsize>4g</air.build.jvmsize>
 
         <dep.trino.version>463</dep.trino.version>
-        <dep.airlift.version>276</dep.airlift.version>
+        <dep.airlift.version>279</dep.airlift.version>
         <dep.slice.version>2.3</dep.slice.version>
         <dep.opentelemetry.version>1.43.0</dep.opentelemetry.version>
         <dep.opentelemetry-instrumentation.version>2.9.0</dep.opentelemetry-instrumentation.version>
@@ -33,7 +33,7 @@
         <dep.guava.version>33.3.1-jre</dep.guava.version>
         <dep.guice.version>7.0.0</dep.guice.version>
         <dep.errorprone.version>2.35.1</dep.errorprone.version>
-        <dep.jackson.version>2.18.0</dep.jackson.version>
+        <dep.jackson.version>2.18.1</dep.jackson.version>
         <dep.jakarta.version>3.1.0</dep.jakarta.version>
         <dep.jdbi.version>3.47.0</dep.jdbi.version>
         <dep.joda.version>2.12.7</dep.joda.version>
