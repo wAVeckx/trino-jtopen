@@ -27,6 +27,7 @@ import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcExpression;
 import io.trino.plugin.jdbc.JdbcJoinCondition;
+import io.trino.plugin.jdbc.JdbcMetadata;
 import io.trino.plugin.jdbc.JdbcOutputTableHandle;
 import io.trino.plugin.jdbc.JdbcProcedureHandle;
 import io.trino.plugin.jdbc.JdbcProcedureHandle.ProcedureQuery;
@@ -698,7 +699,7 @@ public class JTOpenClient
 
             Map<String, Map<String, Long>> allColumnStatistics = statisticsDao.getAllColumnStatistics(table);
 
-            for (JdbcColumnHandle column : this.getColumns(session, table)) {
+            for (JdbcColumnHandle column : JdbcMetadata.getColumns(session, this, table)) {
                 String columnName = column.getColumnName();
                 Map<String, Long> columnStatistics = allColumnStatistics.getOrDefault(columnName, new HashMap<>());
 

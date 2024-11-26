@@ -20,6 +20,6 @@ public class JTOpenPlugin
 {
     public JTOpenPlugin()
     {
-        super("jtopen", new JTOpenClientModule());
+        super("jtopen", JTOpenClientModule::new);
     }
 }
