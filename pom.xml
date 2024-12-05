@@ -387,21 +387,6 @@
                 <artifactId>duplicate-finder-maven-plugin</artifactId>
                 <configuration>
                     <exceptions combine.children="append">
-                        <exception>
-                            <conflictingDependencies>
-                                <dependency>
-                                    <groupId>com.google.cloud.bigdataoss</groupId>
-                                    <artifactId>gcs-connector</artifactId>
-                                </dependency>
-                                <dependency>
-                                    <groupId>org.apache.httpcomponents</groupId>
-                                    <artifactId>httpclient</artifactId>
-                                </dependency>
-                            </conflictingDependencies>
-                            <resources>
-                                <resource>mozilla/public-suffix-list.txt</resource>
-                            </resources>
-                        </exception>
                         <exception usePattern="true">
                             <conflictingDependencies>
                                 <dependency>
