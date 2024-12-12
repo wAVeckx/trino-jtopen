@@ -5,11 +5,11 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>200</version>
+        <version>202</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
-    <version>465</version>
+    <version>466</version>
     <packaging>trino-plugin</packaging>
     <description>Trino - JTOpen Connector</description>
 
@@ -24,8 +24,8 @@
         <air.check.skip-checkstyle>false</air.check.skip-checkstyle>
         <air.build.jvmsize>4g</air.build.jvmsize>
 
-        <dep.trino.version>465</dep.trino.version>
-        <dep.airlift.version>285</dep.airlift.version>
+        <dep.trino.version>466</dep.trino.version>
+        <dep.airlift.version>287</dep.airlift.version>
         <dep.slice.version>2.3</dep.slice.version>
         <dep.opentelemetry.version>1.44.1</dep.opentelemetry.version>
         <dep.opentelemetry-instrumentation.version>2.10.0</dep.opentelemetry-instrumentation.version>
@@ -33,7 +33,7 @@
         <dep.guava.version>33.3.1-jre</dep.guava.version>
         <dep.guice.version>7.0.0</dep.guice.version>
         <dep.errorprone.version>2.36.0</dep.errorprone.version>
-        <dep.jackson.version>2.18.1</dep.jackson.version>
+        <dep.jackson.version>2.18.2</dep.jackson.version>
         <dep.jakarta.version>3.1.0</dep.jakarta.version>
         <dep.jdbi.version>3.47.0</dep.jdbi.version>
         <dep.joda.version>2.12.7</dep.joda.version>
@@ -333,7 +333,6 @@
                     <spiArtifactId>trino-spi</spiArtifactId>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>ca.vanzyl.provisio.maven.plugins</groupId>
                 <artifactId>provisio-maven-plugin</artifactId>
@@ -362,7 +361,6 @@
                     <fork>false</fork>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
@@ -383,6 +381,41 @@
                         <version>2.2.0</version>
                     </dependency>
                 </dependencies>
+            </plugin>
+            <plugin>
+                <groupId>org.basepom.maven</groupId>
+                <artifactId>duplicate-finder-maven-plugin</artifactId>
+                <configuration>
+                    <exceptions combine.children="append">
+                        <exception usePattern="true">
+                            <conflictingDependencies>
+                                <dependency>
+                                    <groupId>io.airlift</groupId>
+                                    <artifactId>aircompressor-v3</artifactId>
+                                </dependency>
+                                <dependency>
+                                    <groupId>io.trino</groupId>
+                                    <artifactId>trino-jdbc</artifactId>
+                                </dependency>
+                            </conflictingDependencies>
+                            <resources>
+                                <resource>aircompressor/.*\.so</resource>
+                                <resource>aircompressor/.*\.dylib</resource>
+                            </resources>
+                        </exception>
+                    </exceptions>
+                    <ignoredResourcePatterns>
+                        <ignoredResourcePattern>aircompressor/.*\.(so|dylib)</ignoredResourcePattern>
+                    </ignoredResourcePatterns>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

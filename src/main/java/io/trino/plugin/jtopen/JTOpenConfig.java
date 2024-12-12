@@ -15,6 +15,7 @@ package io.trino.plugin.jtopen;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.LegacyConfig;
 import jakarta.validation.constraints.Min;
 
 //import java.util.concurrent.TimeUnit;
@@ -45,7 +46,8 @@ public class JTOpenConfig
         return storedProcedureTableFunctionEnabled;
     }
 
-    @Config("jtopen.experimental.stored-procedure-table-function-enabled")
+    @Config("jtopen.stored-procedure-table-function-enabled")
+    @LegacyConfig("jtopen.experimental.stored-procedure-table-function-enabled")
     @ConfigDescription("Allows accessing Stored procedure as a table function")
     public JTOpenConfig setStoredProcedureTableFunctionEnabled(boolean storedProcedureTableFunctionEnabled)
     {
