@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
-    <version>466</version>
+    <version>467</version>
     <packaging>trino-plugin</packaging>
     <description>Trino - JTOpen Connector</description>
 
@@ -25,7 +25,7 @@
         <air.build.jvmsize>4g</air.build.jvmsize>
 
         <dep.trino.version>467</dep.trino.version>
-        <dep.airlift.version>293</dep.airlift.version>
+        <dep.airlift.version>291</dep.airlift.version>
         <dep.slice.version>2.3</dep.slice.version>
         <dep.opentelemetry.version>1.45.0</dep.opentelemetry.version>
         <dep.opentelemetry-instrumentation.version>2.10.0</dep.opentelemetry-instrumentation.version>
