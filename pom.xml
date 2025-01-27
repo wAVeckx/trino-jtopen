@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>207</version>
+        <version>212</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
@@ -25,9 +25,9 @@
         <air.build.jvmsize>4g</air.build.jvmsize>
 
         <dep.trino.version>468</dep.trino.version>
-        <dep.airlift.version>293</dep.airlift.version>
+        <dep.airlift.version>297</dep.airlift.version>
         <dep.slice.version>2.3</dep.slice.version>
-        <dep.opentelemetry.version>1.45.0</dep.opentelemetry.version>
+        <dep.opentelemetry.version>1.46.0</dep.opentelemetry.version>
         <dep.opentelemetry-instrumentation.version>2.10.0</dep.opentelemetry-instrumentation.version>
         <dep.packaging.version>${dep.airlift.version}</dep.packaging.version>
         <dep.guava.version>33.4.0-jre</dep.guava.version>
@@ -102,7 +102,7 @@
         <dependency>
             <groupId>net.sf.jt400</groupId>
             <artifactId>jt400</artifactId>
-            <version>20.0.8</version>
+            <version>21.0.0</version>
         </dependency>
 
         <dependency>
