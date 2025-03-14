@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>229</version>
+        <version>231</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
@@ -25,9 +25,9 @@
         <air.build.jvmsize>4g</air.build.jvmsize>
 
         <dep.trino.version>472</dep.trino.version>
-        <dep.airlift.version>312</dep.airlift.version>
+        <dep.airlift.version>316</dep.airlift.version>
         <dep.slice.version>2.3</dep.slice.version>
-        <dep.opentelemetry.version>1.47.0</dep.opentelemetry.version>
+        <dep.opentelemetry.version>1.48.0</dep.opentelemetry.version>
         <dep.opentelemetry-instrumentation.version>2.13.3</dep.opentelemetry-instrumentation.version>
         <dep.packaging.version>${dep.airlift.version}</dep.packaging.version>
         <dep.guava.version>33.4.0-jre</dep.guava.version>
@@ -35,7 +35,7 @@
         <dep.errorprone.version>2.36.0</dep.errorprone.version>
         <dep.jackson.version>2.18.3</dep.jackson.version>
         <dep.jakarta.version>3.1.1</dep.jakarta.version>
-        <dep.jdbi.version>3.47.0</dep.jdbi.version>
+        <dep.jdbi.version>3.48.0</dep.jdbi.version>
         <dep.joda.version>2.13.1</dep.joda.version>
         <dep.junit.version>5.12.0</dep.junit.version>
         <dep.assertj-core.version>3.27.3</dep.assertj-core.version>
@@ -134,7 +134,7 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api-incubator</artifactId>
-            <version>${dep.opentelemetry.version}-alpha</version>
+            <version>${dep.opentelemetry.version}</version>
             <scope>provided</scope>
         </dependency>
 
