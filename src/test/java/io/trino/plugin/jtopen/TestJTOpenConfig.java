@@ -14,22 +14,23 @@
 package io.trino.plugin.jtopen;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.configuration.ConfigurationFactory;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
-import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
-import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestJTOpenConfig
 {
     @Test
     public void testDefaults()
     {
-        assertRecordedDefaults(recordDefaults(JTOpenConfig.class)
-                .setVarcharMaxLength(32739)
-                .setStoredProcedureTableFunctionEnabled(false));
+        JTOpenConfig config = new JTOpenConfig();
+        assertEquals(32739, config.getVarcharMaxLength());
+        assertFalse(config.isStoredProcedureTableFunctionEnabled());
     }
 
     @Test
@@ -37,15 +38,15 @@ public class TestJTOpenConfig
     {
         int testVarcharLength = 30000;
 
-        Map<String, String> properties = new ImmutableMap.Builder<String, String>()
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("jtopen.varchar-max-length", String.valueOf(testVarcharLength))
                 .put("jtopen.stored-procedure-table-function-enabled", "true")
                 .build();
 
-        JTOpenConfig expected = new JTOpenConfig()
-                .setVarcharMaxLength(testVarcharLength)
-                .setStoredProcedureTableFunctionEnabled(true);
+        ConfigurationFactory factory = new ConfigurationFactory(properties);
+        JTOpenConfig config = factory.build(JTOpenConfig.class);
 
-        assertFullMapping(properties, expected);
+        assertEquals(testVarcharLength, config.getVarcharMaxLength());
+        assertTrue(config.isStoredProcedureTableFunctionEnabled());
     }
 }
