@@ -5,11 +5,11 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>234</version>
+        <version>253</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
-    <version>474</version>
+    <version>475</version>
     <packaging>trino-plugin</packaging>
     <description>Trino - JTOpen Connector</description>
 
@@ -24,20 +24,20 @@
         <air.check.skip-checkstyle>false</air.check.skip-checkstyle>
         <air.build.jvmsize>4g</air.build.jvmsize>
 
-        <dep.trino.version>474</dep.trino.version>
-        <dep.airlift.version>319</dep.airlift.version>
+        <dep.trino.version>475</dep.trino.version>
+        <dep.airlift.version>332</dep.airlift.version>
         <dep.slice.version>2.3</dep.slice.version>
-        <dep.opentelemetry.version>1.48.0</dep.opentelemetry.version>
-        <dep.opentelemetry-instrumentation.version>2.14.0</dep.opentelemetry-instrumentation.version>
+        <dep.opentelemetry.version>1.49.0</dep.opentelemetry.version>
+        <dep.opentelemetry-instrumentation.version>2.15.0</dep.opentelemetry-instrumentation.version>
         <dep.packaging.version>${dep.airlift.version}</dep.packaging.version>
-        <dep.guava.version>33.4.5-jre</dep.guava.version>
+        <dep.guava.version>33.4.8-jre</dep.guava.version>
         <dep.guice.version>7.0.0</dep.guice.version>
-        <dep.errorprone.version>2.37.0</dep.errorprone.version>
-        <dep.jackson.version>2.18.3</dep.jackson.version>
+        <dep.errorprone.version>2.38.0</dep.errorprone.version>
+        <dep.jackson.version>2.19.0</dep.jackson.version>
         <dep.jakarta.version>3.1.1</dep.jakarta.version>
-        <dep.jdbi.version>3.47.0</dep.jdbi.version>
-        <dep.joda.version>2.13.1</dep.joda.version>
-        <dep.junit.version>5.12.1</dep.junit.version>
+        <dep.jdbi.version>3.49.3</dep.jdbi.version>
+        <dep.joda.version>2.14.0</dep.joda.version>
+        <dep.junit.version>5.12.2</dep.junit.version>
         <dep.assertj-core.version>3.27.3</dep.assertj-core.version>
         <dep.plugin.surefire.version>3.2.5</dep.plugin.surefire.version>
         <dep.jna.version>5.16.0</dep.jna.version>
