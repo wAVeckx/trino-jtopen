@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         java-version:
-        - 23
+        - 24
     env:
       MAVEN_SKIP_CHECKS_AND_DOCS: -Dair.check.skip-all=true -Dmaven.javadoc.skip=true
       MAVEN_FAST_INSTALL: -DskipTests -Dair.check.skip-all=true -Dmaven.javadoc.skip=true -B -q -T 1.0C
