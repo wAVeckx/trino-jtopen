@@ -5,17 +5,17 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>253</version>
+        <version>264</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
-    <version>475</version>
+    <version>476</version>
     <packaging>trino-plugin</packaging>
     <description>Trino - JTOpen Connector</description>
 
     <properties>
-        <project.build.targetJdk>23</project.build.targetJdk>
-        <air.java.version>23</air.java.version>
+        <project.build.targetJdk>24</project.build.targetJdk>
+        <air.java.version>24</air.java.version>
 
         <air.check.skip-extended>true</air.check.skip-extended>
         <air.check.skip-license>false</air.check.skip-license>
@@ -24,20 +24,20 @@
         <air.check.skip-checkstyle>false</air.check.skip-checkstyle>
         <air.build.jvmsize>4g</air.build.jvmsize>
 
-        <dep.trino.version>475</dep.trino.version>
-        <dep.airlift.version>332</dep.airlift.version>
+        <dep.trino.version>476</dep.trino.version>
+        <dep.airlift.version>336</dep.airlift.version>
         <dep.slice.version>2.3</dep.slice.version>
-        <dep.opentelemetry.version>1.49.0</dep.opentelemetry.version>
-        <dep.opentelemetry-instrumentation.version>2.15.0</dep.opentelemetry-instrumentation.version>
+        <dep.opentelemetry.version>1.50.0</dep.opentelemetry.version>
+        <dep.opentelemetry-instrumentation.version>2.16.0</dep.opentelemetry-instrumentation.version>
         <dep.packaging.version>${dep.airlift.version}</dep.packaging.version>
         <dep.guava.version>33.4.8-jre</dep.guava.version>
         <dep.guice.version>7.0.0</dep.guice.version>
         <dep.errorprone.version>2.38.0</dep.errorprone.version>
         <dep.jackson.version>2.19.0</dep.jackson.version>
         <dep.jakarta.version>3.1.1</dep.jakarta.version>
-        <dep.jdbi.version>3.49.3</dep.jdbi.version>
+        <dep.jdbi.version>3.49.4</dep.jdbi.version>
         <dep.joda.version>2.14.0</dep.joda.version>
-        <dep.junit.version>5.12.2</dep.junit.version>
+        <dep.junit.version>5.13.0</dep.junit.version>
         <dep.assertj-core.version>3.27.3</dep.assertj-core.version>
         <dep.plugin.surefire.version>3.2.5</dep.plugin.surefire.version>
         <dep.jna.version>5.16.0</dep.jna.version>
@@ -102,7 +102,7 @@
         <dependency>
             <groupId>net.sf.jt400</groupId>
             <artifactId>jt400</artifactId>
-            <version>21.0.3</version>
+            <version>21.0.4</version>
         </dependency>
 
         <dependency>
@@ -130,14 +130,12 @@
             <version>${dep.opentelemetry.version}</version>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api-incubator</artifactId>
             <version>${dep.opentelemetry.version}-alpha</version>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-context</artifactId>
@@ -255,12 +253,14 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <version>${dep.junit.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
+            <version>${dep.junit.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -349,45 +349,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-wrapper-plugin</artifactId>
                 <version>3.3.2</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration combine.children="append">
-                    <compilerArgs>
-                        <arg>-XDcompilePolicy=simple</arg>
-                        <!-- <arg>-Xplugin:ErrorProne</arg> -->
-                    </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>com.google.errorprone</groupId>
-                            <artifactId>error_prone_core</artifactId>
-                            <version>${dep.errorprone.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                    <fork>false</fork>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <configuration>
-                    <rules>
-                        <requireUpperBoundDeps>
-                            <excludes combine.children="append">
-                                <!-- TODO: fix this in Airlift resolver -->
-                                <exclude>org.codehaus.plexus:plexus-utils</exclude>
-                            </excludes>
-                        </requireUpperBoundDeps>
-                    </rules>
-                </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>com.github.ferstl</groupId>
-                        <artifactId>pedantic-pom-enforcers</artifactId>
-                        <version>2.2.0</version>
-                    </dependency>
-                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.basepom.maven</groupId>
