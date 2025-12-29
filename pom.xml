@@ -26,6 +26,7 @@
         <air.java.version>25</air.java.version>
 
         <air.check.skip-extended>true</air.check.skip-extended>
+        <air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>
         <air.check.skip-license>false</air.check.skip-license>
         <air.check.fail-checkstyle>true</air.check.fail-checkstyle>
         <air.check.skip-checkstyle>false</air.check.skip-checkstyle>
@@ -222,11 +223,6 @@
                     <artifactId>provisio-maven-plugin</artifactId>
                     <version>1.1.1</version>
                 </plugin>
-                <plugin>
-                    <groupId>org.basepom.maven</groupId>
-                    <artifactId>duplicate-finder-maven-plugin</artifactId>
-                    <version>2.0.1</version>
-                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -264,23 +260,20 @@
             </plugin>
 
             <plugin>
-                <groupId>org.basepom.maven</groupId>
-                <artifactId>duplicate-finder-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
                 <configuration>
-                    <ignoredResourcePatterns>
-                        <ignoredResourcePattern>aircompressor/.*\.(so|dylib)</ignoredResourcePattern>
-                        <ignoredResourcePattern>about\.html</ignoredResourcePattern>
-                        <ignoredResourcePattern>git\.properties</ignoredResourcePattern>
-                    </ignoredResourcePatterns>
+                    <rules combine.children="append">
+                        <banDuplicateClasses>
+                            <scopes>
+                                <scope>compile</scope>
+                                <scope>runtime</scope>
+                                <scope>provided</scope>
+                            </scopes>
+                            <ignoreWhenIdentical>true</ignoreWhenIdentical>
+                        </banDuplicateClasses>
+                    </rules>
                 </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <phase>verify</phase>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
