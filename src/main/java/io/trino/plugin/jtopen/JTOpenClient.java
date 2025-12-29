@@ -26,7 +26,6 @@ import io.trino.plugin.jdbc.ColumnMapping;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcExpression;
-import io.trino.plugin.jdbc.JdbcJoinCondition;
 import io.trino.plugin.jdbc.JdbcMetadata;
 import io.trino.plugin.jdbc.JdbcOutputTableHandle;
 import io.trino.plugin.jdbc.JdbcProcedureHandle;
@@ -68,7 +67,6 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.JoinCondition;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.SchemaTableName;
@@ -120,8 +118,8 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.booleanColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.booleanWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.charReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.charWriteFunction;
-import static io.trino.plugin.jdbc.StandardColumnMappings.dateColumnMappingUsingSqlDate;
-import static io.trino.plugin.jdbc.StandardColumnMappings.dateWriteFunctionUsingSqlDate;
+import static io.trino.plugin.jdbc.StandardColumnMappings.dateColumnMappingUsingLocalDate;
+import static io.trino.plugin.jdbc.StandardColumnMappings.dateWriteFunctionUsingLocalDate;
 import static io.trino.plugin.jdbc.StandardColumnMappings.decimalColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.defaultCharColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.defaultVarcharColumnMapping;
@@ -136,9 +134,8 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.realWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.shortDecimalWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.smallintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.smallintWriteFunction;
-import static io.trino.plugin.jdbc.StandardColumnMappings.timeColumnMappingUsingSqlTime;
+import static io.trino.plugin.jdbc.StandardColumnMappings.timeColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.timestampWriteFunction;
-import static io.trino.plugin.jdbc.StandardColumnMappings.timestampWriteFunctionUsingSqlTimestamp;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.toLongTrinoTimestamp;
@@ -159,6 +156,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -362,13 +360,10 @@ public class JTOpenClient
                 return Optional.of(varbinaryColumnMapping());
 
             case Types.DATE:
-                //TODO: Deprecated. Should be dateColumnMappingUsingLocalDate
-                //LocalDate uses getObject but is shown to give data type not valid
-                return Optional.of(dateColumnMappingUsingSqlDate());
+                return Optional.of(dateColumnMappingUsingLocalDate());
 
             case Types.TIME:
-                //TODO: Consider using `StandardColumnMappings.timeColumnMapping`
-                return Optional.of(timeColumnMappingUsingSqlTime());
+                return Optional.of(timeColumnMapping(TIME_MICROS));
 
             case Types.TIMESTAMP:
                 int timeprecision = typeHandle.requiredDecimalDigits();
@@ -391,7 +386,7 @@ public class JTOpenClient
             return ColumnMapping.longMapping(
                     timestampType,
                     timestampReadFunction(timestampType),
-                    timestampWriteFunctionUsingSqlTimestamp(timestampType));
+                    timestampWriteFunction(timestampType));
         }
         checkArgument(timestampType.getPrecision() <= MAX_LOCAL_DATE_TIME_PRECISION, "Precision is out of range: %s", timestampType.getPrecision());
         return ColumnMapping.objectMapping(
@@ -508,7 +503,7 @@ public class JTOpenClient
             return WriteMapping.sliceMapping("varbinary", varbinaryWriteFunction());
         }
         if (type == DATE) {
-            WriteMapping.longMapping("date", dateWriteFunctionUsingSqlDate());
+            return WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
         }
         throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
     }
@@ -549,32 +544,6 @@ public class JTOpenClient
                 rightSource,
                 statistics,
                 () -> super.implementJoin(session, joinType, leftSource, leftProjections, rightSource, rightProjections, joinConditions, statistics));
-    }
-
-    @Override
-    public Optional<PreparedQuery> legacyImplementJoin(
-            ConnectorSession session,
-            JoinType joinType,
-            PreparedQuery leftSource,
-            PreparedQuery rightSource,
-            List<JdbcJoinCondition> joinConditions,
-            Map<JdbcColumnHandle, String> rightAssignments,
-            Map<JdbcColumnHandle, String> leftAssignments,
-            JoinStatistics statistics)
-    {
-        return implementJoinCostAware(
-                session,
-                joinType,
-                leftSource,
-                rightSource,
-                statistics,
-                () -> super.legacyImplementJoin(session, joinType, leftSource, rightSource, joinConditions, rightAssignments, leftAssignments, statistics));
-    }
-
-    @Override
-    protected boolean isSupportedJoinCondition(ConnectorSession session, JdbcJoinCondition joinCondition)
-    {
-        return joinCondition.getOperator() != JoinCondition.Operator.IDENTICAL;
     }
 
     private static ColumnMapping charColumnMapping(int charLength)
