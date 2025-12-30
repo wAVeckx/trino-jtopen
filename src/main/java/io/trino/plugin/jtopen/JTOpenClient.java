@@ -30,6 +30,7 @@ import io.trino.plugin.jdbc.JdbcMetadata;
 import io.trino.plugin.jdbc.JdbcOutputTableHandle;
 import io.trino.plugin.jdbc.JdbcProcedureHandle;
 import io.trino.plugin.jdbc.JdbcProcedureHandle.ProcedureQuery;
+import io.trino.plugin.jdbc.JdbcSortItem;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
@@ -101,6 +102,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -175,8 +177,7 @@ public class JTOpenClient
 
     private final int varcharMaxLength;
 
-    //TODO: Need to review precision issues. 12 seems to work for timestamp
-    // java.util.LocalDateTime supports up to nanosecond precision
+    // DB2 for i TIMESTAMP supports up to 12 digits of fractional seconds (picoseconds)
     private static final int MAX_LOCAL_DATE_TIME_PRECISION = 12;
     public static final JdbcTypeHandle BIGINT_TYPE = new JdbcTypeHandle(Types.BIGINT, Optional.of("bigint"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
     private static final String VARCHAR_FORMAT = "VARCHAR(%d)";
@@ -784,6 +785,48 @@ public class JTOpenClient
     public boolean isLimitGuaranteed(ConnectorSession session)
     {
         return true;
+    }
+
+    @Override
+    public boolean supportsTopN(ConnectorSession session, JdbcTableHandle handle, List<JdbcSortItem> sortOrder)
+    {
+        for (JdbcSortItem sortItem : sortOrder) {
+            Type sortItemType = sortItem.column().getColumnType();
+            if (sortItemType instanceof CharType || sortItemType instanceof VarcharType) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean isTopNGuaranteed(ConnectorSession session)
+    {
+        return true;
+    }
+
+    @Override
+    protected Optional<TopNFunction> topNFunction()
+    {
+        return Optional.of((query, sortItems, limit) -> {
+            String orderBy = sortItems.stream()
+                    .flatMap(sortItem -> {
+                        String columnName = quoted(sortItem.column().getColumnName());
+
+                        return switch (sortItem.sortOrder()) {
+                            case ASC_NULLS_LAST -> Stream.of(format("%s ASC", columnName));
+                            case DESC_NULLS_FIRST -> Stream.of(format("%s DESC", columnName));
+                            case ASC_NULLS_FIRST -> Stream.of(
+                                    format("(CASE WHEN %s IS NULL THEN 0 ELSE 1 END)", columnName),
+                                    format("%s ASC", columnName));
+                            case DESC_NULLS_LAST -> Stream.of(
+                                    format("(CASE WHEN %s IS NULL THEN 1 ELSE 0 END)", columnName),
+                                    format("%s DESC", columnName));
+                        };
+                    })
+                    .collect(joining(", "));
+            return format("%s ORDER BY %s FETCH FIRST %s ROWS ONLY", query, orderBy, limit);
+        });
     }
 
     @Override
