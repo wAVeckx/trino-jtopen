@@ -37,8 +37,8 @@ import io.trino.spi.function.table.ConnectorTableFunction;
 import java.util.Properties;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.plugin.jdbc.DecimalModule.MappingToNumber.ON_BY_DEFAULT;
 
 public class JTOpenClientModule
         extends AbstractConfigurationAwareModule
@@ -52,13 +52,12 @@ public class JTOpenClientModule
         configBinder(binder).bindConfig(JdbcStatisticsConfig.class);
         configBinder(binder).bindConfig(TypeHandlingJdbcConfig.class);
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
-        install(new DecimalModule());
+        install(DecimalModule.withNumberMapping(ON_BY_DEFAULT));
         install(new JdbcJoinPushdownSupportModule());
 
-        install(conditionalModule(
-                JTOpenConfig.class,
-                JTOpenConfig::isStoredProcedureTableFunctionEnabled,
-                internalBinder -> newSetBinder(internalBinder, ConnectorTableFunction.class).addBinding().toProvider(Procedure.class).in(Scopes.SINGLETON)));
+        if (buildConfigObject(JTOpenConfig.class).isStoredProcedureTableFunctionEnabled()) {
+            newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Procedure.class).in(Scopes.SINGLETON);
+        }
     }
 
     @Provides
@@ -67,8 +66,7 @@ public class JTOpenClientModule
     public static ConnectionFactory getConnectionFactory(BaseJdbcConfig config, CredentialProvider credentialProvider, JTOpenConfig db2Config, OpenTelemetry openTelemetry)
     {
         Properties connectionProperties = new Properties();
-        // https://www-01.ibm.com/support/knowledgecenter/ssw_ibm_i_72/rzaha/conprop.htm
-        // block size (a.k.a fetch size), default 32
+
         connectionProperties.setProperty("block size", "512");
 
         return DriverConnectionFactory.builder(new AS400JDBCDriver(), config.getConnectionUrl(), credentialProvider)
