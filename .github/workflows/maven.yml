@@ -34,7 +34,7 @@ jobs:
       run: ./mvnw test -Dmaven.javadoc.skip=true -B
 
     - name: Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.java-version == '25' }}
       with:
         files: |
