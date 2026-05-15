@@ -5,11 +5,11 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>364</version>
+        <version>375</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
-    <version>480</version>
+    <version>481</version>
     <packaging>trino-plugin</packaging>
     <description>Trino - JTOpen Connector</description>
 
@@ -32,9 +32,9 @@
         <air.check.skip-checkstyle>false</air.check.skip-checkstyle>
         <air.build.jvmsize>4g</air.build.jvmsize>
 
-        <dep.trino.version>480</dep.trino.version>
+        <dep.trino.version>481</dep.trino.version>
 
-        <dep.airlift.version>419</dep.airlift.version>
+        <dep.airlift.version>424</dep.airlift.version>
         <dep.guice.version>7.0.0</dep.guice.version>
 
         <dep.jt400.version>21.0.6</dep.jt400.version>
