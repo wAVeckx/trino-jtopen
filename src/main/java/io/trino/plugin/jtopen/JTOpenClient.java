@@ -239,7 +239,7 @@ public class JTOpenClient
                 .map("$subtract(left: integer_type, right: integer_type)").to("left - right")
                 .map("$multiply(left: integer_type, right: integer_type)").to("left * right")
                 .map("$divide(left: integer_type, right: integer_type)").to("left / right")
-                .map("$modulus(left: integer_type, right: integer_type)").to("left % right")
+                .map("$modulo(left: integer_type, right: integer_type)").to("left % right")
                 .map("$negate(value: integer_type)").to("-value")
                 .map("$like(value: varchar, pattern: varchar): boolean").to("value LIKE pattern")
                 .map("$like(value: varchar, pattern: varchar, escape: varchar(1)): boolean").to("value LIKE pattern ESCAPE escape")
@@ -306,31 +306,28 @@ public class JTOpenClient
             return mapping;
         }
         switch (typeHandle.jdbcType()) {
-            case Types.BIT:
-            case Types.BOOLEAN:
+            case Types.BIT, Types.BOOLEAN -> {
                 return Optional.of(booleanColumnMapping());
-
-            case Types.TINYINT:
+            }
+            case Types.TINYINT -> {
                 return Optional.of(tinyintColumnMapping());
-
-            case Types.SMALLINT:
+            }
+            case Types.SMALLINT -> {
                 return Optional.of(smallintColumnMapping());
-
-            case Types.INTEGER:
+            }
+            case Types.INTEGER -> {
                 return Optional.of(integerColumnMapping());
-
-            case Types.BIGINT:
+            }
+            case Types.BIGINT -> {
                 return Optional.of(bigintColumnMapping());
-
-            case Types.REAL:
+            }
+            case Types.REAL -> {
                 return Optional.of(realColumnMapping());
-
-            case Types.FLOAT:
-            case Types.DOUBLE:
+            }
+            case Types.FLOAT, Types.DOUBLE -> {
                 return Optional.of(doubleColumnMapping());
-
-            case Types.NUMERIC:
-            case Types.DECIMAL:
+            }
+            case Types.NUMERIC, Types.DECIMAL -> {
                 int decimalDigits = typeHandle.requiredDecimalDigits();
                 int scale = max(decimalDigits, 0);
                 int precision = max(typeHandle.requiredColumnSize() + max(-decimalDigits, 0), scale); // Map decimal(p, -s) (negative scale) to decimal(p+s, 0).
@@ -346,46 +343,43 @@ public class JTOpenClient
                         return Optional.of(decimalColumnMapping(createDecimalType(Decimals.MAX_PRECISION, scale), getDecimalRoundingMode(session)));
                     }
                 }
-                break;
-            case Types.CHAR:
+            }
+            case Types.CHAR -> {
                 return Optional.of(charColumnMapping(typeHandle.requiredColumnSize()));
-            case Types.NCHAR:
+            }
+            case Types.NCHAR -> {
                 return Optional.of(defaultCharColumnMapping(typeHandle.requiredColumnSize(), true));
-
-            case Types.VARCHAR:
+            }
+            case Types.VARCHAR -> {
                 return Optional.of(varcharColumnMapping(typeHandle.requiredColumnSize()));
-
-            case Types.NVARCHAR:
-            case Types.LONGVARCHAR:
-            case Types.LONGNVARCHAR:
+            }
+            case Types.NVARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> {
                 return Optional.of(defaultVarcharColumnMapping(typeHandle.requiredColumnSize(), false));
-
-            case Types.CLOB:
-            case Types.NCLOB:
+            }
+            case Types.CLOB, Types.NCLOB -> {
                 return Optional.of(ColumnMapping.sliceMapping(
                         createUnboundedVarcharType(),
                         (resultSet, columnIndex) -> utf8Slice(resultSet.getString(columnIndex)),
                         varcharWriteFunction(),
                         DISABLE_PUSHDOWN));
-
-            case Types.BINARY:
-            case Types.VARBINARY:
-            case Types.LONGVARBINARY:
+            }
+            case Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY -> {
                 return Optional.of(varbinaryColumnMapping());
-
-            case Types.DATE:
+            }
+            case Types.DATE -> {
                 return Optional.of(dateColumnMappingUsingLocalDate());
-
-            case Types.TIME:
+            }
+            case Types.TIME -> {
                 return Optional.of(timeColumnMapping(TIME_MICROS));
-
-            case Types.TIMESTAMP:
+            }
+            case Types.TIMESTAMP -> {
                 int timeprecision = typeHandle.requiredDecimalDigits();
                 if (timeprecision > MAX_LOCAL_DATE_TIME_PRECISION) {
                     timeprecision = MAX_LOCAL_DATE_TIME_PRECISION;
                 }
                 TimestampType timestampType = createTimestampType(timeprecision);
                 return Optional.of(timestampColumnMapping(timestampType));
+            }
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {
@@ -748,7 +742,7 @@ public class JTOpenClient
                     "AND TRANSLATION_TABLES = '' ")
                     .bind("schema", remoteTableName.getSchemaName().orElse(null))
                     .bind("table_name", remoteTableName.getTableName())
-                    .map((rs, ctx) -> {
+                    .map((rs, _) -> {
                         String columnName = rs.getString("COLUMN_NAME");
                         Map<String, Long> columnStats = new HashMap<>();
                         columnStats.put("NUMBER_DISTINCT_VALUES", rs.getLong("NUMBER_DISTINCT_VALUES"));
