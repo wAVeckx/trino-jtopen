@@ -102,14 +102,11 @@ public class JTOpenQueryResult
     private Object getRowValue(RowType rowType)
             throws SQLException
     {
-        switch (rowType) {
-            case RowType.STRING:
-                return fResultSet.getString(1);
-            case RowType.INTEGER:
-                return fResultSet.getInt(1);
-            default:
-                return null;
-        }
+        return switch (rowType) {
+            case RowType.STRING -> fResultSet.getString(1);
+            case RowType.INTEGER -> fResultSet.getInt(1);
+            default -> null;
+        };
     }
 
     // Convert the result set to a ROW list
