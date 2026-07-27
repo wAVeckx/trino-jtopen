@@ -5,11 +5,11 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>391</version>
+        <version>395</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
-    <version>482</version>
+    <version>483</version>
     <packaging>trino-plugin</packaging>
     <description>Trino - JTOpen Connector</description>
 
@@ -32,13 +32,13 @@
         <air.check.skip-checkstyle>false</air.check.skip-checkstyle>
         <air.build.jvmsize>4g</air.build.jvmsize>
 
-        <dep.trino.version>482</dep.trino.version>
+        <dep.trino.version>483</dep.trino.version>
 
-        <dep.airlift.version>435</dep.airlift.version>
+        <dep.airlift.version>439</dep.airlift.version>
         <dep.guice.version>7.0.0</dep.guice.version>
 
         <dep.jt400.version>21.0.6</dep.jt400.version>
-        <dep.jdbi.version>3.53.0</dep.jdbi.version>
+        <dep.jdbi.version>3.54.0</dep.jdbi.version>
 
         <project.scm.id>github</project.scm.id>
     </properties>
@@ -221,7 +221,7 @@
                 <plugin>
                     <groupId>ca.vanzyl.provisio.maven.plugins</groupId>
                     <artifactId>provisio-maven-plugin</artifactId>
-                    <version>1.1.1</version>
+                    <version>1.1.3</version>
                 </plugin>
             </plugins>
         </pluginManagement>
