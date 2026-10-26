@@ -28,7 +28,7 @@ import io.trino.plugin.jdbc.ForBaseJdbc;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcJoinPushdownSupportModule;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
-import io.trino.plugin.jdbc.TypeHandlingJdbcConfig;
+import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.ptf.Procedure;
 import io.trino.plugin.jdbc.ptf.Query;
@@ -37,8 +37,10 @@ import io.trino.spi.function.table.ConnectorTableFunction;
 import java.util.Properties;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.jdbc.DecimalModule.MappingToNumber.ON_BY_DEFAULT;
+import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
 
 public class JTOpenClientModule
         extends AbstractConfigurationAwareModule
@@ -47,31 +49,53 @@ public class JTOpenClientModule
     public void setup(Binder binder)
     {
         binder.bind(JdbcClient.class).annotatedWith(ForBaseJdbc.class).to(JTOpenClient.class).in(Scopes.SINGLETON);
-        configBinder(binder).bindConfig(BaseJdbcConfig.class);
         configBinder(binder).bindConfig(JTOpenConfig.class);
         configBinder(binder).bindConfig(JdbcStatisticsConfig.class);
-        configBinder(binder).bindConfig(TypeHandlingJdbcConfig.class);
-        newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
+        bindSessionPropertiesProvider(binder, JTOpenSessionProperties.class);
+        newOptionalBinder(binder, QueryBuilder.class).setBinding().to(JTOpenQueryBuilder.class).in(Scopes.SINGLETON);
         install(DecimalModule.withNumberMapping(ON_BY_DEFAULT));
         install(new JdbcJoinPushdownSupportModule());
+        newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
 
-        if (buildConfigObject(JTOpenConfig.class).isStoredProcedureTableFunctionEnabled()) {
+        JTOpenConfig config = buildConfigObject(JTOpenConfig.class);
+        if (config.isStoredProcedureTableFunctionEnabled()) {
             newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Procedure.class).in(Scopes.SINGLETON);
         }
+
+        // Fail at startup rather than return wrong results when the sort properties of the URL and the connector disagree
+        JTOpenSortSequence.verify(buildConfigObject(BaseJdbcConfig.class).getConnectionUrl(), config.isCaseInsensitiveSortSequence());
     }
 
     @Provides
     @Singleton
     @ForBaseJdbc
-    public static ConnectionFactory getConnectionFactory(BaseJdbcConfig config, CredentialProvider credentialProvider, JTOpenConfig db2Config, OpenTelemetry openTelemetry)
+    public static ConnectionFactory getConnectionFactory(BaseJdbcConfig config, CredentialProvider credentialProvider, OpenTelemetry openTelemetry)
     {
-        Properties connectionProperties = new Properties();
-
-        connectionProperties.setProperty("block size", "512");
-
         return DriverConnectionFactory.builder(new AS400JDBCDriver(), config.getConnectionUrl(), credentialProvider)
-                .setConnectionProperties(connectionProperties)
-                        .setOpenTelemetry(openTelemetry)
-                        .build();
+                .setConnectionProperties(connectionProperties())
+                .setOpenTelemetry(openTelemetry)
+                .build();
+    }
+
+    /**
+     * Driver defaults tuned for Trino, which reads whole result sets and writes in batches. A property given in the
+     * connection URL takes precedence over the value set here.
+     */
+    static Properties connectionProperties()
+    {
+        Properties properties = new Properties();
+        // Largest block of rows fetched per round trip
+        properties.setProperty("block size", "512");
+        // *ALLIO: optimize for retrieving the whole result set; the driver default is *FIRSTIO for dynamic SQL
+        properties.setProperty("query optimize goal", "2");
+        // Blocked inserts for batched writes
+        properties.setProperty("use block update", "true");
+        // Job date formats such as *MDY cannot represent years outside 1940-2039
+        properties.setProperty("date format", "iso");
+        // Second-level message text in SQLExceptions
+        properties.setProperty("errors", "full");
+        // REMARKS in metadata carries the SQL comment set with COMMENT ON, rather than the object text
+        properties.setProperty("remarks", "sql");
+        return properties;
     }
 }
