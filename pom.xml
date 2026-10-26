@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>418</version>
+        <version>420</version>
     </parent>
 
     <artifactId>trino-jtopen</artifactId>
@@ -34,9 +34,9 @@
 
         <dep.trino.version>484</dep.trino.version>
 
-        <dep.airlift.version>451</dep.airlift.version>
+        <dep.airlift.version>454</dep.airlift.version>
 
-        <dep.jt400.version>21.0.6</dep.jt400.version>
+        <dep.jt400.version>21.0.7</dep.jt400.version>
         <dep.jdbi.version>3.55.0</dep.jdbi.version>
 
         <project.scm.id>github</project.scm.id>
