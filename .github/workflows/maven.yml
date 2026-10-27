@@ -1,6 +1,6 @@
 name: Java CI
 
-on: 
+on:
   push:
     paths-ignore:
       - '**.md'
@@ -8,36 +8,32 @@ on:
     paths-ignore:
       - '**.md'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        java-version:
-        - 25
-    env:
-      MAVEN_SKIP_CHECKS_AND_DOCS: -Dair.check.skip-all=true -Dmaven.javadoc.skip=true
-      MAVEN_FAST_INSTALL: -DskipTests -Dair.check.skip-all=true -Dmaven.javadoc.skip=true -B -q -T 1.0C
     steps:
-    - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
 
-    - uses: actions/setup-java@v6
-      with:
-        distribution: 'temurin'
-        java-version: ${{ matrix.java-version }}
+      - uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: 25
+          cache: maven
 
-    - name: ./mvnw install
-      run: ./mvnw install $MAVEN_FAST_INSTALL
+      # Compiles, runs the style, dependency and SPI checks and the unit tests, and builds the plugin archive.
+      # The integration tests need an IBM i system and are skipped, see DEVELOPMENT.md.
+      - name: Build and test
+        run: ./mvnw -B -ntp verify
 
-    - name: ./mvnw test
-      run: ./mvnw test -Dmaven.javadoc.skip=true -B
-
-    - name: Release
-      uses: softprops/action-gh-release@v3
-      if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.java-version == '25' }}
-      with:
-        files: |
-          target/trino-jtopen-*.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        with:
+          files: |
+            target/trino-jtopen-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

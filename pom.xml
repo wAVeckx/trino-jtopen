@@ -11,7 +11,9 @@
     <artifactId>trino-jtopen</artifactId>
     <version>484</version>
     <packaging>trino-plugin</packaging>
-    <description>Trino - JTOpen Connector</description>
+    <name>trino-jtopen</name>
+    <description>Trino connector for Db2 for i on IBM i, using the JTOpen JDBC driver</description>
+    <url>https://github.com/wAVeckx/trino-jtopen</url>
 
     <licenses>
         <license>
@@ -20,6 +22,12 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <scm>
+        <connection>scm:git:https://github.com/wAVeckx/trino-jtopen.git</connection>
+        <developerConnection>scm:git:git@github.com:wAVeckx/trino-jtopen.git</developerConnection>
+        <url>https://github.com/wAVeckx/trino-jtopen</url>
+    </scm>
 
     <properties>
         <project.build.targetJdk>25</project.build.targetJdk>
@@ -35,9 +43,11 @@
         <dep.trino.version>484</dep.trino.version>
 
         <dep.airlift.version>451</dep.airlift.version>
+        <dep.airlift.guice.version>10</dep.airlift.guice.version>
 
-        <dep.jt400.version>21.0.6</dep.jt400.version>
+        <dep.jt400.version>21.0.7</dep.jt400.version>
         <dep.jdbi.version>3.55.0</dep.jdbi.version>
+        <dep.tpch.version>1.4</dep.tpch.version>
 
         <project.scm.id>github</project.scm.id>
     </properties>
@@ -70,6 +80,12 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-base-jdbc</artifactId>
+            <version>${dep.trino.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-matching</artifactId>
             <version>${dep.trino.version}</version>
         </dependency>
 
@@ -135,8 +151,23 @@
 
         <dependency>
             <groupId>io.airlift</groupId>
+            <artifactId>log-manager</artifactId>
+            <version>${dep.airlift.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
             <artifactId>testing</artifactId>
             <version>${dep.airlift.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-base-jdbc</artifactId>
+            <version>${dep.trino.version}</version>
+            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
@@ -151,6 +182,14 @@
             <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
             <version>${dep.trino.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-main</artifactId>
+            <version>${dep.trino.version}</version>
+            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
@@ -185,6 +224,13 @@
             <groupId>io.trino</groupId>
             <artifactId>trino-tpch</artifactId>
             <version>${dep.trino.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino.tpch</groupId>
+            <artifactId>tpch</artifactId>
+            <version>${dep.tpch.version}</version>
             <scope>test</scope>
         </dependency>
 

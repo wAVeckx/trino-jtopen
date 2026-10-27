@@ -20,7 +20,8 @@ import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestJTOpenPlugin
 {
@@ -29,7 +30,42 @@ public class TestJTOpenPlugin
     {
         Plugin plugin = new JTOpenPlugin();
         ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
-        assertEquals(factory.getName(), "jtopen");
-        factory.create("test", ImmutableMap.of("connection-url", "jdbc:as400:test"), new TestingConnectorContext());
+        assertThat(factory.getName()).isEqualTo("jtopen");
+        factory.create("test", ImmutableMap.of("connection-url", "jdbc:as400:test"), new TestingConnectorContext()).shutdown();
+    }
+
+    @Test
+    public void testCreateConnectorWithAllProperties()
+    {
+        Plugin plugin = new JTOpenPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        factory.create(
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("connection-url", "jdbc:as400://host/schema;sort=language;sort weight=shared")
+                        .put("connection-user", "user")
+                        .put("connection-password", "password")
+                        .put("jtopen.varchar-max-length", "16000")
+                        .put("jtopen.stored-procedure-table-function-enabled", "true")
+                        .put("jtopen.case-insensitive-sort-sequence", "true")
+                        .put("jtopen.varchar-comparison-semantics", "PAD_SPACE")
+                        .buildOrThrow(),
+                new TestingConnectorContext())
+                .shutdown();
+    }
+
+    @Test
+    public void testSortSequenceMustMatchConfiguration()
+    {
+        Plugin plugin = new JTOpenPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        // sort=language ignores case under the default sort weight; the connector refuses to start without being told
+        assertThatThrownBy(() -> factory.create("test", ImmutableMap.of("connection-url", "jdbc:as400://host;sort=language"), new TestingConnectorContext()))
+                .hasMessageContaining("Set jtopen.case-insensitive-sort-sequence=true");
+        assertThatThrownBy(() -> factory.create(
+                "test",
+                ImmutableMap.of("connection-url", "jdbc:as400://host", "jtopen.case-insensitive-sort-sequence", "true"),
+                new TestingConnectorContext()))
+                .hasMessageContaining("jtopen.case-insensitive-sort-sequence is true");
     }
 }

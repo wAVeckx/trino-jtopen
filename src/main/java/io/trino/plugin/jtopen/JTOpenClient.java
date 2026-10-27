@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.jtopen;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
@@ -27,7 +28,6 @@ import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcExpression;
 import io.trino.plugin.jdbc.JdbcMetadata;
-import io.trino.plugin.jdbc.JdbcOutputTableHandle;
 import io.trino.plugin.jdbc.JdbcProcedureHandle;
 import io.trino.plugin.jdbc.JdbcProcedureHandle.ProcedureQuery;
 import io.trino.plugin.jdbc.JdbcSortItem;
@@ -38,6 +38,7 @@ import io.trino.plugin.jdbc.LongReadFunction;
 import io.trino.plugin.jdbc.ObjectReadFunction;
 import io.trino.plugin.jdbc.ObjectWriteFunction;
 import io.trino.plugin.jdbc.PredicatePushdownController;
+import io.trino.plugin.jdbc.PredicatePushdownController.DomainPushdownResult;
 import io.trino.plugin.jdbc.PreparedQuery;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.RemoteTableName;
@@ -60,12 +61,12 @@ import io.trino.plugin.jdbc.aggregation.ImplementVariancePop;
 import io.trino.plugin.jdbc.aggregation.ImplementVarianceSamp;
 import io.trino.plugin.jdbc.expression.JdbcConnectorExpressionRewriterBuilder;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
-import io.trino.plugin.jdbc.expression.RewriteIn;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.SchemaTableName;
@@ -79,6 +80,7 @@ import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
 import io.trino.spi.type.LongTimestamp;
+import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
@@ -94,18 +96,22 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.jdbc.DecimalSessionSessionProperties.getDecimalRounding;
 import static io.trino.plugin.jdbc.DecimalSessionSessionProperties.getDecimalRoundingMode;
@@ -123,8 +129,6 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.charWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.dateColumnMappingUsingLocalDate;
 import static io.trino.plugin.jdbc.StandardColumnMappings.dateWriteFunctionUsingLocalDate;
 import static io.trino.plugin.jdbc.StandardColumnMappings.decimalColumnMapping;
-import static io.trino.plugin.jdbc.StandardColumnMappings.defaultCharColumnMapping;
-import static io.trino.plugin.jdbc.StandardColumnMappings.defaultVarcharColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.doubleColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.doubleWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.fromLongTrinoTimestamp;
@@ -138,6 +142,7 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.shortDecimalWriteFunct
 import static io.trino.plugin.jdbc.StandardColumnMappings.smallintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.smallintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.timeColumnMapping;
+import static io.trino.plugin.jdbc.StandardColumnMappings.timeWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.timestampWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintWriteFunction;
@@ -149,6 +154,8 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.varcharReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharWriteFunction;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsupportedTypeHandling;
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
+import static io.trino.plugin.jtopen.JTOpenConfig.VarcharComparisonSemantics.PAD_SPACE;
+import static io.trino.plugin.jtopen.JTOpenSessionProperties.getVarcharComparisonSemantics;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -159,7 +166,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TimeType.TIME_MICROS;
+import static io.trino.spi.type.TimeType.TIME_SECONDS;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -167,6 +174,7 @@ import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.lang.Math.max;
 import static java.lang.String.format;
+import static java.lang.String.join;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
@@ -182,48 +190,80 @@ public class JTOpenClient
     private static final int MAX_LOCAL_DATE_TIME_PRECISION = 12;
     public static final JdbcTypeHandle BIGINT_TYPE = new JdbcTypeHandle(Types.BIGINT, Optional.of("bigint"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
     private static final String VARCHAR_FORMAT = "VARCHAR(%d)";
+    // Db2 for i allows up to 32766 bytes for a CHAR column
+    private static final int CHAR_MAX_LENGTH = 32766;
     private final boolean statisticsEnabled;
+    private final boolean caseInsensitiveSortSequence;
     private final ConnectorExpressionRewriter<ParameterizedExpression> connectorExpressionRewriter;
     private final AggregateFunctionRewriter<JdbcExpression, ?> aggregateFunctionRewriter;
 
-    private static final PredicatePushdownController JTOPEN_STRING_COLLATION_AWARE_PUSHDOWN = (session, domain) -> {
-        if (domain.isNullableSingleValue()) {
+    // Db2 for i compares CHAR and VARCHAR with PAD SPACE semantics (the shorter operand is padded with blanks) and with
+    // the sort sequence of the connection, which under the default *HEX sequence orders by EBCDIC code point and under
+    // a shared-weight sequence ignores case. Trino compares varchar with NO PAD, is always case-sensitive and orders by
+    // Unicode code point. Range predicates on character columns therefore never match Trino and always stay in the
+    // engine. Equality predicates are pushed down by one of the two controllers below, depending on the column type,
+    // the configured sort sequence and the varchar comparison semantics of the session.
+
+    // Pushes =, IN, IS NULL and IS NOT NULL down only as a superset pre-filter that the engine re-checks, so that the
+    // query returns Trino's results even where Db2 for i matches more rows. <> and NOT IN cannot be expressed as a
+    // superset and stay in the engine.
+    private static final PredicatePushdownController CHARACTER_PREFILTER_PUSHDOWN = (session, domain) -> {
+        if (domain.isOnlyNull() || domain.getValues().isAll()) {
             return FULL_PUSHDOWN.apply(session, domain);
+        }
+
+        if (!domain.getValues().isDiscreteSet()) {
+            return DISABLE_PUSHDOWN.apply(session, domain);
         }
 
         Domain simplifiedDomain = domain.simplify(getDomainCompactionThreshold(session));
         if (!simplifiedDomain.getValues().isDiscreteSet()) {
-            // Push down inequality predicate
-            ValueSet complement = simplifiedDomain.getValues().complement();
-            if (complement.isDiscreteSet()) {
-                return FULL_PUSHDOWN.apply(session, simplifiedDomain);
-            }
             // Domain#simplify can turn a discrete set into a range predicate
-            // Push down of range predicate for varchar/char types could lead to incorrect results
-            // when the remote database is case insensitive
             return DISABLE_PUSHDOWN.apply(session, domain);
         }
-        return FULL_PUSHDOWN.apply(session, simplifiedDomain);
+        return new DomainPushdownResult(simplifiedDomain, domain);
+    };
+
+    // Pushes =, <>, IN, NOT IN, IS NULL and IS NOT NULL down fully. Used under a case-sensitive sort sequence for CHAR
+    // columns, where Db2 for i equality matches Trino's because Trino ignores trailing blanks in CHAR values as well, and
+    // for VARCHAR columns, where JTOpenQueryBuilder makes the equality exact with a character length check unless the
+    // session accepts PAD SPACE comparison semantics.
+    private static final PredicatePushdownController CHARACTER_EQUALITY_PUSHDOWN = (session, domain) -> {
+        if (domain.isOnlyNull() || domain.getValues().isAll()) {
+            return FULL_PUSHDOWN.apply(session, domain);
+        }
+
+        Domain simplifiedDomain = domain.simplify(getDomainCompactionThreshold(session));
+        ValueSet values = simplifiedDomain.getValues();
+        if (values.isDiscreteSet() || values.complement().isDiscreteSet()) {
+            return FULL_PUSHDOWN.apply(session, simplifiedDomain);
+        }
+        // Domain#simplify can turn a discrete set into a range predicate
+        return DISABLE_PUSHDOWN.apply(session, domain);
     };
 
     @Inject
     public JTOpenClient(
             BaseJdbcConfig config,
             JdbcStatisticsConfig statisticsConfig,
-            JTOpenConfig jtopenconfig,
+            JTOpenConfig jtopenConfig,
             ConnectionFactory connectionFactory,
             QueryBuilder queryBuilder,
             IdentifierMapping identifierMapping,
             RemoteQueryModifier queryModifier)
-            throws SQLException
     {
         super("\"", connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, queryModifier, true);
-        this.varcharMaxLength = jtopenconfig.getVarcharMaxLength();
+        this.varcharMaxLength = jtopenConfig.getVarcharMaxLength();
         this.statisticsEnabled = statisticsConfig.isEnabled();
+        this.caseInsensitiveSortSequence = jtopenConfig.isCaseInsensitiveSortSequence();
+        RemoteComparison remoteComparison = new RemoteComparison(caseInsensitiveSortSequence);
 
-        this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
+        JdbcConnectorExpressionRewriterBuilder rewriterBuilder = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 .addStandardRules(this::quoted)
-                .add(new RewriteIn())
+                .add(new RewriteJTOpenCharConstant())
+                .add(new RewriteJTOpenComparison(remoteComparison))
+                .add(new RewriteJTOpenIn(remoteComparison))
+                .add(new RewriteJTOpenNullIf(remoteComparison))
                 .withTypeClass("integer_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint"))
                 .withTypeClass("numeric_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint", "decimal", "real", "double"))
                 .map("$equal(left: numeric_type, right: numeric_type)").to("left = right")
@@ -238,24 +278,30 @@ public class JTOpenClient
                 .map("$divide(left: integer_type, right: integer_type)").to("left / right")
                 .map("$modulo(left: integer_type, right: integer_type)").to("left % right")
                 .map("$negate(value: integer_type)").to("-value")
-                .map("$like(value: varchar, pattern: varchar): boolean").to("value LIKE pattern")
-                .map("$like(value: varchar, pattern: varchar, escape: varchar(1)): boolean").to("value LIKE pattern ESCAPE escape")
-                .map("$like(value: char, pattern: varchar): boolean").to("value LIKE pattern")
-                .map("$like(value: char, pattern: varchar, escape: varchar(1)): boolean").to("value LIKE pattern ESCAPE escape")
                 .map("$not($is_null(value))").to("value IS NOT NULL")
                 .map("$not(value: boolean)").to("NOT value")
-                .map("$is_null(value)").to("value IS NULL")
-                .map("$nullif(first, second)").to("NULLIF(first, second)")
-                .build();
+                .map("$is_null(value)").to("value IS NULL");
+        if (!caseInsensitiveSortSequence) {
+            // LIKE does not pad, and under a *HEX or unique-weight sort sequence it is case-sensitive, as in Trino. Under
+            // a shared-weight sort sequence it ignores case, so it stays in the engine.
+            rewriterBuilder
+                    .map("$like(value: varchar, pattern: varchar): boolean").to("value LIKE pattern")
+                    .map("$like(value: varchar, pattern: varchar, escape: varchar(1)): boolean").to("value LIKE pattern ESCAPE escape")
+                    .map("$like(value: char, pattern: varchar): boolean").to("value LIKE pattern")
+                    .map("$like(value: char, pattern: varchar, escape: varchar(1)): boolean").to("value LIKE pattern ESCAPE escape");
+        }
+        this.connectorExpressionRewriter = rewriterBuilder.build();
 
         JdbcTypeHandle bigintTypeHandle = new JdbcTypeHandle(Types.BIGINT, Optional.of("bigint"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
         this.aggregateFunctionRewriter = new AggregateFunctionRewriter<>(
                 this.connectorExpressionRewriter,
                 ImmutableSet.<AggregateFunctionRule<JdbcExpression, ParameterizedExpression>>builder()
                         .add(new ImplementCountAll(bigintTypeHandle))
-                        .add(new ImplementMinMax(false))
+                        // min, max and count(DISTINCT) of character values follow the sort sequence of the connection, not Trino's
+                        // code point order and NO PAD comparison, so they are not pushed down
+                        .add(new ImplementMinMax(true))
                         .add(new ImplementCount(bigintTypeHandle))
-                        .add(new ImplementCountDistinct(bigintTypeHandle, false))
+                        .add(new ImplementCountDistinct(bigintTypeHandle, true))
                         .add(new ImplementSum(JTOpenClient::toTypeHandle))
                         .add(new ImplementAvgFloatingPoint())
                         .add(new ImplementAvgDecimal())
@@ -276,23 +322,6 @@ public class JTOpenClient
     public OptionalInt getMaxColumnNameLength(ConnectorSession session)
     {
         return getMaxColumnNameLengthFromDatabaseMetaData(session);
-    }
-
-    @Override
-    public Connection getConnection(ConnectorSession session, JdbcOutputTableHandle jdbcTablehandle)
-            throws SQLException
-    {
-        Connection connection = super.getConnection(session, jdbcTablehandle);
-        try {
-            // TRANSACTION_READ_UNCOMMITTED = Uncommitted read
-            // http://www.ibm.com/developerworks/data/library/techarticle/dm-0509schuetz/
-            connection.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
-        }
-        catch (SQLException e) {
-            connection.close();
-            throw e;
-        }
-        return connection;
     }
 
     @Override
@@ -341,33 +370,30 @@ public class JTOpenClient
                     }
                 }
             }
-            case Types.CHAR -> {
-                return Optional.of(charColumnMapping(typeHandle.requiredColumnSize()));
+            // GRAPHIC and VARGRAPHIC columns are reported as CHAR and VARCHAR, or as NCHAR and NVARCHAR when their CCSID is 1200
+            case Types.CHAR, Types.NCHAR -> {
+                return Optional.of(charColumnMapping(typeHandle));
             }
-            case Types.NCHAR -> {
-                return Optional.of(defaultCharColumnMapping(typeHandle.requiredColumnSize(), true));
+            case Types.VARCHAR, Types.NVARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> {
+                return Optional.of(varcharColumnMapping(typeHandle));
             }
-            case Types.VARCHAR -> {
-                return Optional.of(varcharColumnMapping(typeHandle.requiredColumnSize()));
-            }
-            case Types.NVARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> {
-                return Optional.of(defaultVarcharColumnMapping(typeHandle.requiredColumnSize(), false));
-            }
-            case Types.CLOB, Types.NCLOB -> {
+            case Types.CLOB, Types.NCLOB, Types.SQLXML -> {
                 return Optional.of(ColumnMapping.sliceMapping(
                         createUnboundedVarcharType(),
                         (resultSet, columnIndex) -> utf8Slice(resultSet.getString(columnIndex)),
                         varcharWriteFunction(),
                         DISABLE_PUSHDOWN));
             }
-            case Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY -> {
+            // CHAR and VARCHAR FOR BIT DATA, and columns with CCSID 65535, are reported as BINARY and VARBINARY
+            case Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY, Types.BLOB -> {
                 return Optional.of(varbinaryColumnMapping());
             }
             case Types.DATE -> {
                 return Optional.of(dateColumnMappingUsingLocalDate());
             }
             case Types.TIME -> {
-                return Optional.of(timeColumnMapping(TIME_MICROS));
+                // Db2 for i TIME has no fractional seconds
+                return Optional.of(timeColumnMapping(TIME_SECONDS));
             }
             case Types.TIMESTAMP -> {
                 int timeprecision = typeHandle.requiredDecimalDigits();
@@ -423,94 +449,85 @@ public class JTOpenClient
                 (statement, index, value) -> statement.setTimestamp(index, Timestamp.valueOf(fromLongTrinoTimestamp(value, timestampType.getPrecision()))));
     }
 
-    /**
-     * To map data types when generating SQL.
-     */
     @Override
     public WriteMapping toWriteMapping(ConnectorSession session, Type type)
     {
-        if (type instanceof VarcharType) {
-            VarcharType varcharType = (VarcharType) type;
-            String dataType;
-
-            if (varcharType.isUnbounded()) {
-                dataType = format(VARCHAR_FORMAT, this.varcharMaxLength);
-            }
-            else if (varcharType.getBoundedLength() > this.varcharMaxLength) {
-                dataType = format("CLOB(%d)", varcharType.getBoundedLength());
-            }
-            else if (varcharType.getBoundedLength() < this.varcharMaxLength) {
-                dataType = format(VARCHAR_FORMAT, varcharType.getBoundedLength());
-            }
-            else {
-                dataType = format(VARCHAR_FORMAT, this.varcharMaxLength);
-            }
-
-            return WriteMapping.sliceMapping(dataType, varcharWriteFunction());
+        if (type == BOOLEAN) {
+            // BOOLEAN columns require IBM i 7.5
+            return WriteMapping.booleanMapping("BOOLEAN", booleanWriteFunction());
         }
-
-        if (type instanceof TimestampType) {
-            TimestampType timestampType = (TimestampType) type;
-            verify(timestampType.getPrecision() <= MAX_LOCAL_DATE_TIME_PRECISION);
-            return WriteMapping.longMapping(format("TIMESTAMP(%s)", timestampType.getPrecision()), timestampWriteFunction(timestampType));
+        if (type == TINYINT) {
+            // Db2 for i has no TINYINT
+            return WriteMapping.longMapping("SMALLINT", tinyintWriteFunction());
         }
-
-        return this.legacyToWriteMapping(type);
-    }
-
-    protected WriteMapping legacyToWriteMapping(Type type)
-    {
-        if (type instanceof VarcharType) {
-            VarcharType varcharType = (VarcharType) type;
-            String dataType;
-            if (varcharType.isUnbounded()) {
-                dataType = "varchar";
-            }
-            else {
-                dataType = "varchar(" + varcharType.getBoundedLength() + ")";
-            }
-            return WriteMapping.sliceMapping(dataType, varcharWriteFunction());
+        if (type == SMALLINT) {
+            return WriteMapping.longMapping("SMALLINT", smallintWriteFunction());
         }
-        if (type instanceof CharType) {
-            return WriteMapping.sliceMapping("char(" + ((CharType) type).getLength() + ")", charWriteFunction());
+        if (type == INTEGER) {
+            return WriteMapping.longMapping("INTEGER", integerWriteFunction());
         }
-        if (type instanceof DecimalType) {
-            DecimalType decimalType = (DecimalType) type;
-            String dataType = format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale());
+        if (type == BIGINT) {
+            return WriteMapping.longMapping("BIGINT", bigintWriteFunction());
+        }
+        if (type == REAL) {
+            return WriteMapping.longMapping("REAL", realWriteFunction());
+        }
+        if (type == DOUBLE) {
+            return WriteMapping.doubleMapping("DOUBLE PRECISION", doubleWriteFunction());
+        }
+        if (type instanceof DecimalType decimalType) {
+            String dataType = format("DECIMAL(%s, %s)", decimalType.getPrecision(), decimalType.getScale());
             if (decimalType.isShort()) {
                 return WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalType));
             }
             return WriteMapping.objectMapping(dataType, longDecimalWriteFunction(decimalType));
         }
-
-        if (type == BOOLEAN) {
-            return WriteMapping.booleanMapping("boolean", booleanWriteFunction());
+        if (type instanceof CharType charType) {
+            if (charType.getLength() > CHAR_MAX_LENGTH) {
+                return WriteMapping.sliceMapping(format("CLOB(%d)", charType.getLength()), charWriteFunction());
+            }
+            return WriteMapping.sliceMapping(format("CHAR(%d)", charType.getLength()), charWriteFunction());
         }
-        if (type == TINYINT) {
-            return WriteMapping.longMapping("tinyint", tinyintWriteFunction());
-        }
-        if (type == SMALLINT) {
-            return WriteMapping.longMapping("smallint", smallintWriteFunction());
-        }
-        if (type == INTEGER) {
-            return WriteMapping.longMapping("integer", integerWriteFunction());
-        }
-        if (type == BIGINT) {
-            return WriteMapping.longMapping("bigint", bigintWriteFunction());
-        }
-        if (type == REAL) {
-            return WriteMapping.longMapping("real", realWriteFunction());
-        }
-        if (type == DOUBLE) {
-            return WriteMapping.doubleMapping("double precision", doubleWriteFunction());
+        if (type instanceof VarcharType varcharType) {
+            if (varcharType.isUnbounded()) {
+                return WriteMapping.sliceMapping(format(VARCHAR_FORMAT, varcharMaxLength), varcharWriteFunction());
+            }
+            int length = varcharType.getBoundedLength();
+            if (length > varcharMaxLength) {
+                return WriteMapping.sliceMapping(format("CLOB(%d)", length), varcharWriteFunction());
+            }
+            return WriteMapping.sliceMapping(format(VARCHAR_FORMAT, length), varcharWriteFunction());
         }
         if (type == VARBINARY) {
-            return WriteMapping.sliceMapping("varbinary", varbinaryWriteFunction());
+            // Trino varbinary is unbounded; VARBINARY on Db2 for i is limited to 32739 bytes
+            return WriteMapping.sliceMapping("BLOB(2G)", varbinaryWriteFunction());
         }
         if (type == DATE) {
-            return WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
+            return WriteMapping.longMapping("DATE", dateWriteFunctionUsingLocalDate());
+        }
+        if (type instanceof TimeType) {
+            // time(p) with p > 0 is mapped to time(0) by getSupportedType, as Db2 for i TIME has no fractional seconds
+            return WriteMapping.longMapping("TIME", timeWriteFunction(0));
+        }
+        if (type instanceof TimestampType timestampType) {
+            verify(timestampType.getPrecision() <= MAX_LOCAL_DATE_TIME_PRECISION, "Unsupported precision: %s", timestampType);
+            String dataType = format("TIMESTAMP(%s)", timestampType.getPrecision());
+            if (timestampType.isShort()) {
+                return WriteMapping.longMapping(dataType, timestampWriteFunction(timestampType));
+            }
+            return WriteMapping.objectMapping(dataType, longTimestampWriteFunction(timestampType));
         }
         throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
+    }
+
+    @Override
+    public Optional<Type> getSupportedType(ConnectorSession session, Type type)
+    {
+        if (type instanceof TimeType timeType && timeType.getPrecision() > 0) {
+            // Db2 for i TIME has no fractional seconds
+            return Optional.of(TIME_SECONDS);
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -551,21 +568,96 @@ public class JTOpenClient
                 () -> super.implementJoin(session, joinType, leftSource, leftProjections, rightSource, rightProjections, joinConditions, statistics));
     }
 
-    private static ColumnMapping charColumnMapping(int charLength)
+    @Override
+    public List<JdbcColumnHandle> getPrimaryKeys(ConnectorSession session, RemoteTableName remoteTableName)
     {
+        List<JdbcColumnHandle> columns = getColumns(session, remoteTableName.getSchemaTableName(), remoteTableName);
+        try (Connection connection = connectionFactory.openConnection(session);
+                ResultSet primaryKeys = connection.getMetaData().getPrimaryKeys(
+                        remoteTableName.getCatalogName().orElse(null),
+                        remoteTableName.getSchemaName().orElse(null),
+                        remoteTableName.getTableName())) {
+            Set<String> primaryKeyNames = new HashSet<>();
+            while (primaryKeys.next()) {
+                primaryKeyNames.add(primaryKeys.getString("COLUMN_NAME"));
+            }
+            return columns.stream()
+                    .filter(column -> primaryKeyNames.contains(column.getColumnName()))
+                    .collect(toImmutableList());
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+    }
+
+    @Override
+    public boolean supportsMerge()
+    {
+        return true;
+    }
+
+    @Override
+    public Optional<String> getTableComment(ResultSet resultSet)
+            throws SQLException
+    {
+        // REMARKS carries the SQL comment set with COMMENT ON, see the "remarks" connection property
+        return Optional.ofNullable(emptyToNull(resultSet.getString("REMARKS")));
+    }
+
+    @Override
+    protected List<String> createTableSqls(RemoteTableName remoteTableName, List<String> columns, ConnectorTableMetadata tableMetadata)
+    {
+        checkArgument(tableMetadata.getProperties().isEmpty(), "Unsupported table properties: %s", tableMetadata.getProperties());
+        ImmutableList.Builder<String> sqls = ImmutableList.builder();
+        sqls.add(format("CREATE TABLE %s (%s)", quoted(remoteTableName), join(", ", columns)));
+        tableMetadata.getComment().ifPresent(comment -> sqls.add(tableCommentSql(remoteTableName, Optional.of(comment))));
+        return sqls.build();
+    }
+
+    @Override
+    public void setTableComment(ConnectorSession session, JdbcTableHandle handle, Optional<String> comment)
+    {
+        execute(session, tableCommentSql(handle.asPlainTable().getRemoteTableName(), comment));
+    }
+
+    @Override
+    public void setColumnComment(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column, Optional<String> comment)
+    {
+        execute(session, format(
+                "COMMENT ON COLUMN %s.%s IS %s",
+                quoted(handle.asPlainTable().getRemoteTableName()),
+                quoted(column.getColumnName()),
+                commentLiteral(comment)));
+    }
+
+    private String tableCommentSql(RemoteTableName remoteTableName, Optional<String> comment)
+    {
+        return format("COMMENT ON TABLE %s IS %s", quoted(remoteTableName), commentLiteral(comment));
+    }
+
+    private static String commentLiteral(Optional<String> comment)
+    {
+        // Db2 for i requires a string constant; an empty one removes the comment
+        return varcharLiteral(comment.orElse(""));
+    }
+
+    private ColumnMapping charColumnMapping(JdbcTypeHandle typeHandle)
+    {
+        int charLength = typeHandle.requiredColumnSize();
         if (charLength > CharType.MAX_LENGTH) {
-            return varcharColumnMapping(charLength);
+            return varcharColumnMapping(typeHandle);
         }
         CharType charType = createCharType(charLength);
         return ColumnMapping.sliceMapping(
                 charType,
                 charReadFunction(charType),
                 charWriteFunction(),
-                JTOPEN_STRING_COLLATION_AWARE_PUSHDOWN);
+                characterPushdownController(typeHandle, true));
     }
 
-    private static ColumnMapping varcharColumnMapping(int varcharLength)
+    private ColumnMapping varcharColumnMapping(JdbcTypeHandle typeHandle)
     {
+        int varcharLength = typeHandle.requiredColumnSize();
         VarcharType varcharType = varcharLength <= VarcharType.MAX_LENGTH
                 ? createVarcharType(varcharLength)
                 : createUnboundedVarcharType();
@@ -573,7 +665,26 @@ public class JTOpenClient
                 varcharType,
                 varcharReadFunction(varcharType),
                 varcharWriteFunction(),
-                JTOPEN_STRING_COLLATION_AWARE_PUSHDOWN);
+                characterPushdownController(typeHandle, false));
+    }
+
+    private PredicatePushdownController characterPushdownController(JdbcTypeHandle typeHandle, boolean fixedLength)
+    {
+        if (caseInsensitiveSortSequence) {
+            return CHARACTER_PREFILTER_PUSHDOWN;
+        }
+        if (fixedLength) {
+            return CHARACTER_EQUALITY_PUSHDOWN;
+        }
+        // VARCHAR equality is exact as it is under PAD SPACE semantics, and under EXACT semantics when JTOpenQueryBuilder can
+        // add the character length check, which casts the parameter to the type of the column
+        boolean exactPushdownPossible = RemoteComparison.parameterCastType(typeHandle).isPresent();
+        return (session, domain) -> {
+            PredicatePushdownController controller = exactPushdownPossible || getVarcharComparisonSemantics(session) == PAD_SPACE
+                    ? CHARACTER_EQUALITY_PUSHDOWN
+                    : CHARACTER_PREFILTER_PUSHDOWN;
+            return controller.apply(session, domain);
+        };
     }
 
     @Override
@@ -599,7 +710,8 @@ public class JTOpenClient
     {
         try (Connection connection = connectionFactory.openConnection(session)) {
             try (Statement statement = connection.createStatement();
-                    // When FMTONLY is ON , a rowset is returned with the column names for the query
+                    // Db2 for i cannot describe the result set of a procedure without running it, so the procedure runs once
+                    // here to describe its result and again when the table function is read
                     ResultSet resultSet = statement.executeQuery(" %s ".formatted(procedureQuery.query()))) {
                 ResultSetMetaData metadata = resultSet.getMetaData();
                 if (metadata == null) {
@@ -679,10 +791,10 @@ public class JTOpenClient
 
                 ColumnStatistics.Builder columnStatisticsBuilder = ColumnStatistics.builder();
 
-                Long distinctValues = columnStatistics.getOrDefault("NUMBER_DISTINCT_VALUES", null);
-                Long rowCountValues = columnStatistics.getOrDefault("CURRENT_ROWS", null);
-                Long nullsCount = columnStatistics.getOrDefault("NUMBER_NULLS", null);
-                Long averageColumnLength = columnStatistics.getOrDefault("AVERAGE_COLUMN_LENGTH", null);
+                Long distinctValues = columnStatistics.get("NUMBER_DISTINCT_VALUES");
+                Long rowCountValues = columnStatistics.get("CURRENT_ROWS");
+                Long nullsCount = columnStatistics.get("NUMBER_NULLS");
+                Long averageColumnLength = columnStatistics.get("AVERAGE_COLUMN_LENGTH");
                 if (distinctValues != null) {
                     columnStatisticsBuilder.setDistinctValuesCount(Estimate.of(distinctValues));
                 }
@@ -717,9 +829,11 @@ public class JTOpenClient
         Long getRowCount(JdbcTableHandle table)
         {
             RemoteTableName remoteTableName = table.getRequiredNamedRelation().getRemoteTableName();
+            // One row per table; NUMBER_ROWS counts the rows of all partitions and members. SQL names are used rather than
+            // the 10-character system names.
             return handle.createQuery("" +
                             "SELECT NUMBER_ROWS FROM QSYS2.SYSTABLESTAT " +
-                            "WHERE SYSTEM_TABLE_SCHEMA = :schema AND SYSTEM_TABLE_NAME = :table_name ")
+                            "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table_name ")
                     .bind("schema", remoteTableName.getSchemaName().orElse(null))
                     .bind("table_name", remoteTableName.getTableName())
                     .mapTo(Long.class)
@@ -730,24 +844,30 @@ public class JTOpenClient
         Map<String, Map<String, Long>> getAllColumnStatistics(JdbcTableHandle table)
         {
             RemoteTableName remoteTableName = table.getRequiredNamedRelation().getRemoteTableName();
+            // One row per column and partition or member, combined here. Only single-column statistics collected without a
+            // translation table are used, so that the counts match the binary sort sequence. SYSCOLUMNSTAT reports -1 for a
+            // statistic that was not collected; the combined value is NULL as soon as one partition lacks it.
             return handle.createQuery("" +
-                    "SELECT COLUMN_NAME, NUMBER_DISTINCT_VALUES, NUMBER_HISTOGRAM_RANGES, CURRENT_ROWS " +
-                    ", AVERAGE_COLUMN_LENGTH , NUMBER_NULLS " +
-                    "FROM QSYS2.SYSCOLUMNSTAT " +
-                    "WHERE TABLE_SCHEMA = :schema " +
-                    "AND TABLE_NAME = :table_name " +
-                    "AND TRANSLATION_TABLES = '' ")
+                            "SELECT COLUMN_NAME, " +
+                            "CASE WHEN MIN(NUMBER_DISTINCT_VALUES) < 0 THEN NULL ELSE MAX(NUMBER_DISTINCT_VALUES) END AS NUMBER_DISTINCT_VALUES, " +
+                            "SUM(CURRENT_ROWS) AS CURRENT_ROWS, " +
+                            "MAX(AVERAGE_COLUMN_LENGTH) AS AVERAGE_COLUMN_LENGTH, " +
+                            "CASE WHEN MIN(NUMBER_NULLS) < 0 THEN NULL ELSE SUM(NUMBER_NULLS) END AS NUMBER_NULLS " +
+                            "FROM QSYS2.SYSCOLUMNSTAT " +
+                            "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table_name AND NUMBER_COLUMN_NAMES = 1 AND TRANSLATION_TABLES = '' " +
+                            "GROUP BY COLUMN_NAME ")
                     .bind("schema", remoteTableName.getSchemaName().orElse(null))
                     .bind("table_name", remoteTableName.getTableName())
                     .map((rs, _) -> {
                         String columnName = rs.getString("COLUMN_NAME");
                         Map<String, Long> columnStats = new HashMap<>();
-                        columnStats.put("NUMBER_DISTINCT_VALUES", rs.getLong("NUMBER_DISTINCT_VALUES"));
-                        columnStats.put("NUMBER_HISTOGRAM_RANGES", rs.getLong("NUMBER_HISTOGRAM_RANGES"));
-                        columnStats.put("CURRENT_ROWS", rs.getLong("CURRENT_ROWS"));
-                        columnStats.put("AVERAGE_COLUMN_LENGTH", rs.getLong("AVERAGE_COLUMN_LENGTH"));
-                        columnStats.put("NUMBER_NULLS", rs.getLong("NUMBER_NULLS"));
-                        // Add other relevant column statistics
+                        for (String statistic : List.of("NUMBER_DISTINCT_VALUES", "CURRENT_ROWS", "AVERAGE_COLUMN_LENGTH", "NUMBER_NULLS")) {
+                            long value = rs.getLong(statistic);
+                            // A statistic that was not collected is NULL; Trino rejects negative statistics
+                            if (!rs.wasNull() && value >= 0) {
+                                columnStats.put(statistic, value);
+                            }
+                        }
                         return Map.entry(columnName, columnStats);
                     })
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));

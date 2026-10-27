@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static io.trino.plugin.jtopen.JTOpenConfig.VarcharComparisonSemantics.EXACT;
+import static io.trino.plugin.jtopen.JTOpenConfig.VarcharComparisonSemantics.PAD_SPACE;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestJTOpenConfig
 {
@@ -29,24 +29,35 @@ public class TestJTOpenConfig
     public void testDefaults()
     {
         JTOpenConfig config = new JTOpenConfig();
-        assertEquals(32739, config.getVarcharMaxLength());
-        assertFalse(config.isStoredProcedureTableFunctionEnabled());
+        assertThat(config.getVarcharMaxLength()).isEqualTo(32739);
+        assertThat(config.isStoredProcedureTableFunctionEnabled()).isFalse();
+        assertThat(config.isCaseInsensitiveSortSequence()).isFalse();
+        assertThat(config.getVarcharComparisonSemantics()).isEqualTo(EXACT);
     }
 
     @Test
     public void testExplicitPropertyMappings()
     {
-        int testVarcharLength = 30000;
-
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("jtopen.varchar-max-length", String.valueOf(testVarcharLength))
+                .put("jtopen.varchar-max-length", "30000")
                 .put("jtopen.stored-procedure-table-function-enabled", "true")
-                .build();
+                .put("jtopen.case-insensitive-sort-sequence", "true")
+                .put("jtopen.varchar-comparison-semantics", "PAD_SPACE")
+                .buildOrThrow();
 
-        ConfigurationFactory factory = new ConfigurationFactory(properties);
-        JTOpenConfig config = factory.build(JTOpenConfig.class);
+        JTOpenConfig config = new ConfigurationFactory(properties).build(JTOpenConfig.class);
 
-        assertEquals(testVarcharLength, config.getVarcharMaxLength());
-        assertTrue(config.isStoredProcedureTableFunctionEnabled());
+        assertThat(config.getVarcharMaxLength()).isEqualTo(30000);
+        assertThat(config.isStoredProcedureTableFunctionEnabled()).isTrue();
+        assertThat(config.isCaseInsensitiveSortSequence()).isTrue();
+        assertThat(config.getVarcharComparisonSemantics()).isEqualTo(PAD_SPACE);
+    }
+
+    @Test
+    public void testLegacyPropertyMapping()
+    {
+        JTOpenConfig config = new ConfigurationFactory(ImmutableMap.of("jtopen.experimental.stored-procedure-table-function-enabled", "true"))
+                .build(JTOpenConfig.class);
+        assertThat(config.isStoredProcedureTableFunctionEnabled()).isTrue();
     }
 }
