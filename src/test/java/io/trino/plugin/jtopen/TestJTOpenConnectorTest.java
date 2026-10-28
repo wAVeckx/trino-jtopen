@@ -65,7 +65,6 @@ public class TestJTOpenConnectorTest
             case SUPPORTS_JOIN_PUSHDOWN -> true;
             case SUPPORTS_ADD_COLUMN_WITH_COMMENT,
                  SUPPORTS_ADD_COLUMN_WITH_POSITION,
-                 SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT,
                  SUPPORTS_ARRAY,
                  SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT,
                  SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
@@ -79,6 +78,15 @@ public class TestJTOpenConnectorTest
                  SUPPORTS_ROW_TYPE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Session joinPushdownEnabled(Session session)
+    {
+        return Session.builder(super.joinPushdownEnabled(session))
+                // The AUTOMATIC strategy needs column statistics, which Db2 for i does not have yet for the tables the tests create
+                .setCatalogSessionProperty(session.getCatalog().orElseThrow(), "join_pushdown_strategy", "EAGER")
+                .build();
     }
 
     @Test
@@ -96,12 +104,14 @@ public class TestJTOpenConnectorTest
                     .matches("VALUES BIGINT '1'")
                     .isFullyPushedDown();
 
-            // Db2 for i semantics: the comparison is pushed down as it is and matches both rows
+            // Db2 for i semantics: the comparison is pushed down as it is and matches both rows. That differs from the
+            // result without pushdown on purpose, so the results are not compared with it
             Session padSpace = Session.builder(getSession())
                     .setCatalogSessionProperty(CATALOG, VARCHAR_COMPARISON_SEMANTICS, "PAD_SPACE")
                     .build();
             assertThat(query(padSpace, "SELECT count(*) FROM " + table.getName() + " WHERE v = 'a'"))
                     .matches("VALUES BIGINT '2'")
+                    .skipResultsCorrectnessCheckForPushdown()
                     .isFullyPushedDown();
         }
     }

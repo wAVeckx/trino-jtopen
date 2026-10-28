@@ -299,9 +299,9 @@ public class JTOpenClient
                         .add(new ImplementCountAll(bigintTypeHandle))
                         // min, max and count(DISTINCT) of character values follow the sort sequence of the connection, not Trino's
                         // code point order and NO PAD comparison, so they are not pushed down
-                        .add(new ImplementMinMax(true))
+                        .add(new ImplementMinMax(false))
                         .add(new ImplementCount(bigintTypeHandle))
-                        .add(new ImplementCountDistinct(bigintTypeHandle, true))
+                        .add(new ImplementCountDistinct(bigintTypeHandle, false))
                         .add(new ImplementSum(JTOpenClient::toTypeHandle))
                         .add(new ImplementAvgFloatingPoint())
                         .add(new ImplementAvgDecimal())
@@ -872,6 +872,17 @@ public class JTOpenClient
                     })
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
+    }
+
+    @Override
+    public void renameTable(ConnectorSession session, JdbcTableHandle handle, SchemaTableName newTableName)
+    {
+        // RENAME TABLE keeps the table in its schema, so a new schema would be ignored. Both names are Trino names here,
+        // unlike in the overload below, which also renames the temporary table of CREATE TABLE AS
+        if (!handle.asPlainTable().getSchemaTableName().getSchemaName().equals(newTableName.getSchemaName())) {
+            throw new TrinoException(NOT_SUPPORTED, "This connector does not support renaming tables across schemas");
+        }
+        super.renameTable(session, handle, newTableName);
     }
 
     @Override
