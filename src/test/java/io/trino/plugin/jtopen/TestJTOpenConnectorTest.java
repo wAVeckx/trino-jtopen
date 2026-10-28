@@ -65,7 +65,6 @@ public class TestJTOpenConnectorTest
             case SUPPORTS_JOIN_PUSHDOWN -> true;
             case SUPPORTS_ADD_COLUMN_WITH_COMMENT,
                  SUPPORTS_ADD_COLUMN_WITH_POSITION,
-                 SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT,
                  SUPPORTS_ARRAY,
                  SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT,
                  SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
@@ -79,6 +78,15 @@ public class TestJTOpenConnectorTest
                  SUPPORTS_ROW_TYPE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Session joinPushdownEnabled(Session session)
+    {
+        return Session.builder(super.joinPushdownEnabled(session))
+                // The AUTOMATIC strategy needs column statistics, which Db2 for i does not have yet for the tables the tests create
+                .setCatalogSessionProperty(session.getCatalog().orElseThrow(), "join_pushdown_strategy", "EAGER")
+                .build();
     }
 
     @Test
