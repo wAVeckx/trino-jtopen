@@ -23,17 +23,21 @@ import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcExpression;
 import io.trino.plugin.jdbc.JdbcMetadataConfig;
 import io.trino.plugin.jdbc.JdbcMetadataSessionProperties;
+import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.PredicatePushdownController.DomainPushdownResult;
+import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.plugin.jdbc.TypeHandlingJdbcConfig;
 import io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.plugin.jtopen.JTOpenConfig.VarcharComparisonSemantics;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Constant;
@@ -77,6 +81,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Pins the pushdown rules for character columns. Db2 for i compares CHAR and VARCHAR with PAD SPACE semantics and
@@ -336,6 +341,19 @@ public class TestJTOpenClient
         assertThat(aggregate(new AggregateFunction("count", BIGINT, List.of(VARCHAR_VARIABLE), List.of(), true, Optional.empty()))).isEmpty();
         assertThat(aggregate(new AggregateFunction("count", BIGINT, List.of(CHAR_VARIABLE), List.of(), true, Optional.empty()))).isEmpty();
         assertThat(aggregate(new AggregateFunction("count", BIGINT, List.of(BIGINT_VARIABLE), List.of(), true, Optional.empty()))).isPresent();
+    }
+
+    @Test
+    public void testRenameTableAcrossSchemasIsRejected()
+    {
+        // The remote schema name differs in case from the Trino name, as it does on Db2 for i
+        JdbcTableHandle nation = new JdbcTableHandle(new SchemaTableName("trinotest", "nation"), new RemoteTableName(Optional.empty(), Optional.of("TRINOTEST"), "NATION"), Optional.empty());
+        assertThatThrownBy(() -> CLIENT.renameTable(SESSION, nation, new SchemaTableName("other_schema", "renamed")))
+                .isInstanceOf(TrinoException.class)
+                .hasMessage("This connector does not support renaming tables across schemas");
+        // A rename within the schema passes the check and reaches the connection factory of the test client
+        assertThatThrownBy(() -> CLIENT.renameTable(SESSION, nation, new SchemaTableName("trinotest", "renamed")))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

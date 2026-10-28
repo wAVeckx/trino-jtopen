@@ -875,6 +875,17 @@ public class JTOpenClient
     }
 
     @Override
+    public void renameTable(ConnectorSession session, JdbcTableHandle handle, SchemaTableName newTableName)
+    {
+        // RENAME TABLE keeps the table in its schema, so a new schema would be ignored. Both names are Trino names here,
+        // unlike in the overload below, which also renames the temporary table of CREATE TABLE AS
+        if (!handle.asPlainTable().getSchemaTableName().getSchemaName().equals(newTableName.getSchemaName())) {
+            throw new TrinoException(NOT_SUPPORTED, "This connector does not support renaming tables across schemas");
+        }
+        super.renameTable(session, handle, newTableName);
+    }
+
+    @Override
     protected void renameTable(ConnectorSession session, String catalogName, String schemaName, String tableName, SchemaTableName newTable)
     {
         try (Connection connection = connectionFactory.openConnection(session)) {
