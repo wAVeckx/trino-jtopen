@@ -14,6 +14,7 @@
 package io.trino.plugin.jtopen;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.plugin.tpch.TpchPlugin;
@@ -24,6 +25,7 @@ import io.trino.tpch.TpchTable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
@@ -41,6 +43,10 @@ public final class JTOpenQueryRunner
     }
 
     private static final Logger log = Logger.get(JTOpenQueryRunner.class);
+
+    // Properties whose values are not logged, and the password property of a JTOpen URL
+    private static final Pattern SENSITIVE_PROPERTY_NAME = Pattern.compile("(?i).*(password|secret|token|credential|private-key|api-key|access-key).*");
+    private static final Pattern URL_PASSWORD = Pattern.compile("(?i)(password\\s*=)[^;]*");
 
     public static final String CATALOG = "jtopen";
 
@@ -90,7 +96,7 @@ public final class JTOpenQueryRunner
 
                 queryRunner.installPlugin(new JTOpenPlugin());
                 queryRunner.createCatalog(CATALOG, "jtopen", connectorProperties);
-                log.info("%s catalog properties: %s", CATALOG, connectorProperties);
+                log.info("%s catalog properties: %s", CATALOG, masked(connectorProperties));
 
                 copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, initialTables);
 
@@ -101,6 +107,13 @@ public final class JTOpenQueryRunner
                 throw e;
             }
         }
+    }
+
+    static Map<String, String> masked(Map<String, String> properties)
+    {
+        return Maps.transformEntries(properties, (name, value) -> SENSITIVE_PROPERTY_NAME.matcher(name).matches()
+                ? "***"
+                : URL_PASSWORD.matcher(value).replaceAll("$1***"));
     }
 
     /**
