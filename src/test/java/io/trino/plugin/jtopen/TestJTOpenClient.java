@@ -20,6 +20,7 @@ import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ColumnMapping;
 import io.trino.plugin.jdbc.DefaultQueryBuilder;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
+import io.trino.plugin.jdbc.JdbcExpression;
 import io.trino.plugin.jdbc.JdbcMetadataConfig;
 import io.trino.plugin.jdbc.JdbcMetadataSessionProperties;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
@@ -30,6 +31,7 @@ import io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.plugin.jtopen.JTOpenConfig.VarcharComparisonSemantics;
+import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.expression.Call;
@@ -323,6 +325,20 @@ public class TestJTOpenClient
     }
 
     @Test
+    public void testCharacterMinMaxAndCountDistinctAreNotPushedDown()
+    {
+        // Db2 for i orders by the sort sequence (EBCDIC under *HEX) and compares with PAD SPACE semantics
+        for (String function : List.of("min", "max")) {
+            assertThat(aggregate(new AggregateFunction(function, createVarcharType(10), List.of(VARCHAR_VARIABLE), List.of(), false, Optional.empty()))).isEmpty();
+            assertThat(aggregate(new AggregateFunction(function, createCharType(10), List.of(CHAR_VARIABLE), List.of(), false, Optional.empty()))).isEmpty();
+            assertThat(aggregate(new AggregateFunction(function, BIGINT, List.of(BIGINT_VARIABLE), List.of(), false, Optional.empty()))).isPresent();
+        }
+        assertThat(aggregate(new AggregateFunction("count", BIGINT, List.of(VARCHAR_VARIABLE), List.of(), true, Optional.empty()))).isEmpty();
+        assertThat(aggregate(new AggregateFunction("count", BIGINT, List.of(CHAR_VARIABLE), List.of(), true, Optional.empty()))).isEmpty();
+        assertThat(aggregate(new AggregateFunction("count", BIGINT, List.of(BIGINT_VARIABLE), List.of(), true, Optional.empty()))).isPresent();
+    }
+
+    @Test
     public void testReadMappings()
     {
         assertThat(columnType(CLIENT, CHAR_TYPE_HANDLE)).isEqualTo(createCharType(10));
@@ -435,6 +451,11 @@ public class TestJTOpenClient
         return new Call(BOOLEAN, IN_PREDICATE_FUNCTION_NAME, List.of(
                 value,
                 new Call(new ArrayType(value.getType()), ARRAY_CONSTRUCTOR_FUNCTION_NAME, List.of(values))));
+    }
+
+    private static Optional<JdbcExpression> aggregate(AggregateFunction aggregate)
+    {
+        return CLIENT.implementAggregation(SESSION, aggregate, ASSIGNMENTS);
     }
 
     private static Optional<ParameterizedExpression> convert(JTOpenClient client, ConnectorSession session, ConnectorExpression expression)

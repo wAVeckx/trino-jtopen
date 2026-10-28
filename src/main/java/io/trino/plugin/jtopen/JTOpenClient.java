@@ -299,9 +299,9 @@ public class JTOpenClient
                         .add(new ImplementCountAll(bigintTypeHandle))
                         // min, max and count(DISTINCT) of character values follow the sort sequence of the connection, not Trino's
                         // code point order and NO PAD comparison, so they are not pushed down
-                        .add(new ImplementMinMax(true))
+                        .add(new ImplementMinMax(false))
                         .add(new ImplementCount(bigintTypeHandle))
-                        .add(new ImplementCountDistinct(bigintTypeHandle, true))
+                        .add(new ImplementCountDistinct(bigintTypeHandle, false))
                         .add(new ImplementSum(JTOpenClient::toTypeHandle))
                         .add(new ImplementAvgFloatingPoint())
                         .add(new ImplementAvgDecimal())
