@@ -96,12 +96,14 @@ public class TestJTOpenConnectorTest
                     .matches("VALUES BIGINT '1'")
                     .isFullyPushedDown();
 
-            // Db2 for i semantics: the comparison is pushed down as it is and matches both rows
+            // Db2 for i semantics: the comparison is pushed down as it is and matches both rows. That differs from the
+            // result without pushdown on purpose, so the results are not compared with it
             Session padSpace = Session.builder(getSession())
                     .setCatalogSessionProperty(CATALOG, VARCHAR_COMPARISON_SEMANTICS, "PAD_SPACE")
                     .build();
             assertThat(query(padSpace, "SELECT count(*) FROM " + table.getName() + " WHERE v = 'a'"))
                     .matches("VALUES BIGINT '2'")
+                    .skipResultsCorrectnessCheckForPushdown()
                     .isFullyPushedDown();
         }
     }
