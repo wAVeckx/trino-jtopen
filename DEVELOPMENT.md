@@ -52,7 +52,8 @@ suite expects is adjusted there or with the `verify...Permissible` and `errorMes
 SQL Server and Oracle connectors in Trino do it.
 
 `JTOpenQueryRunner.main` starts a single-node Trino on port 8080 with an `jtopen` catalog pointing at the same
-system, for trying queries by hand with the Trino CLI.
+system, for trying queries by hand with the Trino CLI. Like the tests, it needs the JVM arguments of
+`air.test.jvm.additional-arguments` in `pom.xml`, at least `--add-modules=jdk.incubator.vector`.
 
 ## Updating to a new Trino release
 
